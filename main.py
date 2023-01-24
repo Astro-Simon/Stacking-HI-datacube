@@ -13,26 +13,26 @@
 #?   2.4. We create the stacked image (learning in progress).
 
 #! Libraries
-from functions import *
-from astropy.io import fits
-from astropy.wcs import WCS
-from astropy.modeling import models, fitting
 import os
-import random
+
+from astropy.cosmology import FlatLambdaCDM
+from astropy.io import fits
+import astropy.units as u
 import matplotlib.pyplot as plt
-import numpy as np
-import csv
-import matplotlib.ticker as mtick
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
-import matplotlib.font_manager as fm
-from lmfit.models import GaussianModel
-import warnings
-from matplotlib.colors import LogNorm
-from photutils.aperture import CircularAperture, aperture_photometry
+import sys
+import time
+
+from functions import plot_spaxel_spectrum
+from data_info_extraction_functions import data_and_catalog_extraction, get_galaxies_positions
+from stacking_functions import datacube_stack
+from S_N_functions import S_N_measurement_test, S_N_calculation
 
 #warnings.filterwarnings("ignore")
 
-#! Figure properties !!! Can we put it here or does it have to be in functions.py?
+# Define the cosmology used
+cosmo = FlatLambdaCDM(H0=70 * u.km / u.s / u.Mpc, Tcmb0=2.725 * u.K, Om0=0.3)
+
+#! Figure properties !!! Can we put it here or does it have to be in functions.py? Better to make a file that plot things
 plt.rcParams.update(
     {
         "font.size": 20,
@@ -73,26 +73,34 @@ general_path = '/home/bonnal/Desktop/JAE'
 name_orig_data_cube = 'fullsurvey_1255~1285_image.fits'
 name_orig_PSF_cube = 'fullsurvey_1255_1285_psf.fits'
 name_catalog = 'G10COSMOSCatv05.csv_z051_sq_chiles_specz'
-num_pixels_cubelets = 10 #*We are going to extract cubelets of 20x20 px^2 around each galaxy for data and noise stack
-central_width = 25 #* Number of channels around which the emission is supposed to be located. We use it to extract the continuum of the spectra and calculate sigmas (for weights) !!!Correct value? 
+
 
 #! Main code
-wcs, rest_freq_HI, pixel_X_to_AR, pixel_Y_to_Dec, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, z_min, z_max = data_and_catalog_extraction(name_orig_data_cube, 0)
+wcs, rest_freq_HI, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, z_min, z_max = data_and_catalog_extraction(name_orig_data_cube, 0)
 
 print('\nWe are going to stack galaxies with redshift between %.3f < z < %.3f.\n' %(z_min, z_max))
 
 coords_RA, coords_DEC, redshifts, num_galaxies = get_galaxies_positions(name_catalog, z_min, z_max)
 
-#todo We decide:
-num_channels_cubelets = num_channels
+#todo We decide
+#!!! Use kpc instead of number of pixels and angstroms/Hz instead of number of channels
+num_pixels_cubelets = 10 #*We are going to extract cubelets of 20x20 px^2 around each galaxy for data and noise stack
+central_width = 25 #* Number of channels around which the emission is supposed to be located. We use it to extract the continuum of the spectra and calculate sigmas (for weights) !!!Correct value?
+num_channels_cubelets = num_channels #*Half-range of channels around the galaxy emission we select and use in the cubelets
 central_spaxel = int(num_pixels_cubelets+1)
-emission_channel = int(num_channels_cubelets/2) #!!! What if 'num_channels_cubelets' is not an even number??
+if(num_channels_cubelets%2==0): # Even number of channels
+    emission_channel = int(num_channels_cubelets/2)
+else: # Odd number of channels
+    emission_channel = int(num_channels_cubelets/2) + 1
+
 
 print('Stacking %i cubelets of %i"x%i"x%.2f MHz...' %(num_galaxies, int(abs(pixel_X_to_AR)*3600*(num_pixels_cubelets+1)), int(abs(pixel_Y_to_Dec)*3600*(num_pixels_cubelets+1)), num_channels_cubelets*channel_to_freq/1e6))
 
 #! Get stacked data datacube
+tic = time.perf_counter()
 stacked_data_cube = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, emission_channel, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq_HI, freq_ini, channel_to_freq, central_width, show_verifications)
-print("\nData stacked cube obtained!")
+toc = time.perf_counter()
+print(f"\nData stacked cube obtained in {(toc - tic):0.4f} seconds!")
 
 #! Calculate best (L, C) combination for S/N measurement
 L_best, C_best, S_N_data = S_N_measurement_test(stacked_data_cube, num_pixels_cubelets, num_channels_cubelets, wcs, central_spaxel, central_spaxel, emission_channel, rest_freq_HI, channel_to_freq, flux_units)
