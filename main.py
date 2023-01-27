@@ -15,6 +15,7 @@
 #! Libraries
 import os
 
+from argparse import ArgumentParser, RawTextHelpFormatter
 from astropy.cosmology import FlatLambdaCDM
 from astropy.io import fits
 import astropy.units as u
@@ -74,88 +75,154 @@ name_orig_data_cube = 'fullsurvey_1255~1285_image.fits'
 name_orig_PSF_cube = 'fullsurvey_1255_1285_psf.fits'
 name_catalog = 'G10COSMOSCatv05.csv_z051_sq_chiles_specz'
 
-
 #! Main code
-wcs, rest_freq_HI, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, z_min, z_max = data_and_catalog_extraction(name_orig_data_cube, 0)
+def main():
+    #!!! Use parser to ask for arguments to the user (files to use, num_pixels, num_channels, z_min, z_max, etc.)
+    """parser = ArgumentParser(description="Create cubelets around galaxies from a datacube using a catalog and cubelets and stack them. \n"
+                                        "Only works with wcs=True (for now).",
+                            formatter_class=RawTextHelpFormatter)
 
-print('\nWe are going to stack galaxies with redshift between %.3f < z < %.3f.\n' %(z_min, z_max))
+    parser.add_argument('-c', '--catalog', required=True,
+                        help='Required: Specify the input XML or ascii catalog name. No default.')
 
-coords_RA, coords_DEC, redshifts, num_galaxies = get_galaxies_positions(name_catalog, z_min, z_max)
+    parser.add_argument('-id', '--source-id', default=[], nargs='*', type=int,
+                        help='Space-separated list of sources to include in the plotting. Default all sources')
 
-#todo We decide
-#!!! Use kpc instead of number of pixels and angstroms/Hz instead of number of channels
-num_pixels_cubelets = 10 #*We are going to extract cubelets of 20x20 px^2 around each galaxy for data and noise stack
-central_width = 25 #* Number of channels around which the emission is supposed to be located. We use it to extract the continuum of the spectra and calculate sigmas (for weights) !!!Correct value?
-num_channels_cubelets = num_channels #*Half-range of channels around the galaxy emission we select and use in the cubelets
-central_spaxel = int(num_pixels_cubelets+1)
-if(num_channels_cubelets%2==0): # Even number of channels
-    emission_channel = int(num_channels_cubelets/2)
-else: # Odd number of channels
-    emission_channel = int(num_channels_cubelets/2) + 1
+    #parser.add_argument('-x', '--suffix', default='png',
+    #                    help='Optional: specify the output image file type: png, pdf, eps, jpeg, tiff, etc (default: %(default)s).')
 
+    parser.add_argument('-o', '--original', default=None,
+                        help='Optional: specify the original fits data: used for plotting HI spectra *with* noise over \n'
+                            ' the full frequency range of the cube. Otherwise, plot with noise over frequency range\n'
+                            ' in the cubelet.  Uses 2D mask to integrate. (No default).')
 
-print('Stacking %i cubelets of %i"x%i"x%.2f MHz...' %(num_galaxies, int(abs(pixel_X_to_AR)*3600*(num_pixels_cubelets+1)), int(abs(pixel_Y_to_Dec)*3600*(num_pixels_cubelets+1)), num_channels_cubelets*channel_to_freq/1e6))
+    parser.add_argument('-b', '--beam', default=None,
+                        help='Optional: specify the beam dimensions (bmaj,bmin,bpa) in arcsec, arcsec, deg. If only 1 value\n'
+                            ' is given, assume a circular beam. If 2 values are given, assume PA = 0. (No default).')
 
-#! Get stacked data datacube
-tic = time.perf_counter()
-stacked_data_cube = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, emission_channel, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq_HI, freq_ini, channel_to_freq, central_width, show_verifications)
-toc = time.perf_counter()
-print(f"\nData stacked cube obtained in {(toc - tic):0.4f} seconds!")
+    parser.add_argument('-cw', '--chan_width', default=[None], nargs=1, type=float,
+                        help='Optional: specify the channel width in native units of the original data (e.g. Hz or m/s).'
+                             ' (No default).')
 
-#! Calculate best (L, C) combination for S/N measurement
-L_best, C_best, S_N_data = S_N_measurement_test(stacked_data_cube, num_pixels_cubelets, num_channels_cubelets, wcs, central_spaxel, central_spaxel, emission_channel, rest_freq_HI, channel_to_freq, flux_units)
+    parser.add_argument('-i', '--image_size', default=[6], nargs=1, type=float,
+                        help='Optional: specify the minimum survey image size to retrieve in arcmin.  It will be adjusted if\n'
+                            ' the HI mask is larger. Note max panstarrs image size is 8 arcmin (default: %(default)s).')
 
-#! Get stacked PSF datacube
-PSF = fits.getdata(name_orig_PSF_cube, ext=0)
-PSF = PSF[0]
-stacked_PSF_cube = datacube_stack('PSF', num_galaxies, num_channels_cubelets, 2*num_pixels_cubelets, emission_channel, None, None, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, PSF, wcs, flux_units, redshifts, rest_freq_HI, freq_ini, channel_to_freq, central_width, show_verifications)
-#!!! Should we use weights for the PSF in the stacking process??
+    parser.add_argument('-snr', '--snr-range', default=[2., 3.], nargs=2, type=float,
+                        help='Optional: specify which SNRmin and SNRmax values should be used to set the lowest reliable HI \n'
+                            ' contour in the figures. The contour level is calculated as the median value in the mom0 image\n'
+                            ' of all pixels whose SNR value is within the given range. Default is [2,3].')
 
-print("\nPSF stacked cube obtained!")
+    parser.add_argument('-s', '--surveys', default=[], nargs='*', type=str,
+                        help='Specify SkyView surveys to retrieve from astroquery on which to overlay HI contours.\n'
+                            ' These additional non-SkyView options are also available: \'decals\',\'panstarrs\',\'hst\'.\n'
+                            ' \'hst\' only refers to COSMOS HST (e.g. for CHILES). Default is "DSS2 Blue" if no user\n' 
+                            ' provided image.')
 
-#! Get stacked noises datacube and calculate their S/N ratio
-"""#? Positions shifted
-stacked_noise_cube_shift = noise_stack_shift(num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq_HI, freq_ini, channel_to_freq)
-print("\nShift-noise stacked cube obtained!")
+    parser.add_argument('-m', '--imagemagick', nargs='?', type=str, default='', const='convert',
+                        help='Optional: combine the main plots into single large image file using the IMAGEMAGICK CONVERT task.\n'
+                            ' If this option is given with no argument we simply assume that CONVERT is executed by the "convert"\n'
+                            ' command. Otherwise, the argument of this option gives the full path to the CONVERT executable.\n'
+                            ' Only the first multiwavelength image specified in "surveys" argument is plotted next to the\n'
+                            ' spectral line data.')
 
-S_N_noise_shift = S_N_calculation(stacked_noise_cube_shift, wcs, num_channels_cubelets, central_spaxel, central_spaxel, emission_channel, L_best, C_best)
-print("S/N of noise cube from shifted positions: %f!\n" %S_N_noise_shift)
+    parser.add_argument('-ui', '--user-image', default=None,
+                        help='Optional: Full path to the FITS image on which to overlay HI contours.')
 
-#? Random positions
-stacked_noise_cube_random = noise_stack_random(num_galaxies, num_pixels_X, num_pixels_Y, num_channels_cubelets, num_pixels_cubelets, X_AR_ini, Y_DEC_ini, pixel_X_to_AR, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq_HI, freq_ini, channel_to_freq)
-print("\nRandom-noise stacked cube obtained!")
+    parser.add_argument('-ur', '--user-range', default=[10., 99.], nargs=2, type=float,
+                        help='Optional: Percentile range used when displaying the user image (see "-ui"). Default is [10,99].')
 
-S_N_noise_random = S_N_calculation(stacked_noise_cube_random, wcs, num_channels_cubelets, central_spaxel, central_spaxel, emission_channel, L_best, C_best)
-print("S/N of noise cube from random positions: %f!\n" %S_N_noise_random)"""
+    ###################################################################
 
-#? Redshifts switched
-stacked_noise_cube_Healy = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, emission_channel, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq_HI, freq_ini, channel_to_freq, central_width, show_verifications) #!!! Should I re-use the results from the data datacube?
-print("\nHealy-noise stacked cube obtained!")
+    # Parse the arguments above
+    args = parser.parse_args()
+    suffix = args.suffix
+    original = args.original
+    imagemagick = args.imagemagick"""
+    
+    wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, z_min, z_max = data_and_catalog_extraction(name_orig_data_cube, 0)
 
-S_N_noise_Healy = S_N_calculation(stacked_noise_cube_Healy, wcs, num_channels_cubelets, central_spaxel, central_spaxel, emission_channel, L_best, C_best)
-print("S/N of noise cube from switched redshifts: %f!\n" %S_N_noise_Healy)
+    print('\nWe are going to stack galaxies with redshift between %.3f < z < %.3f.\n' %(z_min, z_max))
 
-names = ["data_stack.fits", "PSF_stack.fits", "noise_stack_Healy.fits"]
-names_original = [name_orig_data_cube, name_orig_PSF_cube, name_orig_data_cube]
-datacubes = [stacked_data_cube, stacked_PSF_cube, stacked_noise_cube_Healy]
-horizontal_dimensions = [2*num_pixels_cubelets, 4*num_pixels_cubelets, 2*num_pixels_cubelets]
-vertical_dimensions = [2*num_pixels_cubelets, 4*num_pixels_cubelets, 2*num_pixels_cubelets]
+    coords_RA, coords_DEC, redshifts, num_galaxies = get_galaxies_positions(name_catalog, z_min, z_max)
 
-for name, name_original, cube, dim_x, dim_y in zip(names, names_original, datacubes, horizontal_dimensions, vertical_dimensions):
-    #* Now we keep this stacked datacube inside a .fits file
-    path = 'Stacked_cubes/'
-    if not os.path.isdir(path):
-        os.makedirs(path)
+    #todo We decide
+    #!!! Use kpc instead of number of pixels and angstroms/Hz instead of number of channels
+    degree_fit_continuum = 1 #* Degree of fit of continuum around emission lines
+    num_pixels_cubelets = 10 #* We are going to extract cubelets of 20x20 px^2 around each galaxy for data and noise stack
+    central_width = 25 #* Number of channels around which the emission is supposed to be located. We use it to extract the continuum of the spectra and calculate sigmas (for weights) !!!Correct value?
+    num_channels_cubelets = num_channels #* Half-range of channels around the galaxy emission we select and use in the cubelets
+    central_spaxel = int(num_pixels_cubelets+1)
+    if(num_channels_cubelets%2==0): # Even number of channels
+        emission_channel = int(num_channels_cubelets/2)
+    else: # Odd number of channels
+        emission_channel = int(num_channels_cubelets/2) + 1
 
-    #* We create the new file
-    name_stacked_cube = path + name
-    fits.writeto(name_stacked_cube, cube, header=fits.open(name_original)[0].header, overwrite=True) #?Save the new datacube
+    print('Stacking %i cubelets of %i"x%i"x%.2f MHz...' %(num_galaxies, int(abs(pixel_X_to_AR)*3600*(num_pixels_cubelets+1)), int(abs(pixel_Y_to_Dec)*3600*(num_pixels_cubelets+1)), num_channels_cubelets*channel_to_freq/1e6))
 
-    #* We modify the header so it contains the correct information
-    fits.setval(name_stacked_cube, 'CRPIX1', value=dim_x+1) #?Change the value of number of pixels on X axis
-    fits.setval(name_stacked_cube, 'CRPIX2', value=dim_y+1) #?Change the value of number of pixels on Y axis
-    fits.setval(name_stacked_cube, 'CRPIX3', value=int(num_channels_cubelets/2)) #?Change the channel of reference: now it's the centered channel
-    fits.setval(name_stacked_cube, 'CRVAL3', value=rest_freq_HI) #?Change the value of the channel of reference: now it's the HI emission
+    #! Get stacked data datacube
+    tic = time.perf_counter()
+    stacked_data_cube = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, emission_channel, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, show_verifications)
+    toc = time.perf_counter()
+    print(f"\nData stacked cube obtained in {(toc - tic):0.4f} seconds!")
 
-#* We plot the spectrum of the central spaxel (where all the galaxies lie)
-plot_spaxel_spectrum(stacked_data_cube, num_galaxies, rest_freq_HI, channel_to_freq, num_channels_cubelets, flux_units, central_spaxel, central_spaxel, 10**6, 'Results/stacked_data_central_spaxel')
+    #! Calculate best (L, C) combination for S/N measurement
+    L_best, C_best, S_N_data = S_N_measurement_test(stacked_data_cube, num_pixels_cubelets, num_channels_cubelets, wcs, central_spaxel, central_spaxel, emission_channel, rest_freq, channel_to_freq, flux_units, degree_fit_continuum)
+
+    #! Get stacked PSF datacube
+    PSF = fits.getdata(name_orig_PSF_cube, ext=0)
+    PSF = PSF[0]
+    stacked_PSF_cube = datacube_stack('PSF', num_galaxies, num_channels_cubelets, 2*num_pixels_cubelets, emission_channel, None, None, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, PSF, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, show_verifications)
+    #!!! Should we use weights for the PSF in the stacking process??
+
+    print("\nPSF stacked cube obtained!")
+
+    #! Get stacked noises datacube and calculate their S/N ratio
+    """#? Positions shifted
+    stacked_noise_cube_shift = noise_stack_shift(num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq)
+    print("\nShift-noise stacked cube obtained!")
+
+    S_N_noise_shift = S_N_calculation(stacked_noise_cube_shift, wcs, num_channels_cubelets, central_spaxel, central_spaxel, emission_channel, L_best, C_best)
+    print("S/N of noise cube from shifted positions: %f!\n" %S_N_noise_shift)
+
+    #? Random positions
+    stacked_noise_cube_random = noise_stack_random(num_galaxies, num_pixels_X, num_pixels_Y, num_channels_cubelets, num_pixels_cubelets, X_AR_ini, Y_DEC_ini, pixel_X_to_AR, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq)
+    print("\nRandom-noise stacked cube obtained!")
+
+    S_N_noise_random = S_N_calculation(stacked_noise_cube_random, wcs, num_channels_cubelets, central_spaxel, central_spaxel, emission_channel, L_best, C_best)
+    print("S/N of noise cube from random positions: %f!\n" %S_N_noise_random)"""
+
+    #? Redshifts switched
+    stacked_noise_cube_Healy = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, emission_channel, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, show_verifications) #!!! Should I re-use the results from the data datacube?
+    print("\nHealy-noise stacked cube obtained!")
+
+    S_N_noise_Healy = S_N_calculation(stacked_noise_cube_Healy, wcs, num_channels_cubelets, central_spaxel, central_spaxel, emission_channel, L_best, C_best, degree_fit_continuum)
+    print("S/N of noise cube from switched redshifts: %f!\n" %S_N_noise_Healy)
+
+    names = ["data_stack.fits", "PSF_stack.fits", "noise_stack_Healy.fits"]
+    names_original = [name_orig_data_cube, name_orig_PSF_cube, name_orig_data_cube]
+    datacubes = [stacked_data_cube, stacked_PSF_cube, stacked_noise_cube_Healy]
+    horizontal_dimensions = [2*num_pixels_cubelets, 4*num_pixels_cubelets, 2*num_pixels_cubelets]
+    vertical_dimensions = [2*num_pixels_cubelets, 4*num_pixels_cubelets, 2*num_pixels_cubelets]
+
+    for name, name_original, cube, dim_x, dim_y in zip(names, names_original, datacubes, horizontal_dimensions, vertical_dimensions):
+        #* Now we keep this stacked datacube inside a .fits file
+        path = 'Stacked_cubes/'
+        if not os.path.isdir(path):
+            os.makedirs(path)
+
+        #* We create the new file
+        name_stacked_cube = path + name
+        fits.writeto(name_stacked_cube, cube, header=fits.open(name_original)[0].header, overwrite=True) #?Save the new datacube
+
+        #* We modify the header so it contains the correct information
+        fits.setval(name_stacked_cube, 'CRPIX1', value=dim_x+1) #?Change the value of number of pixels on X axis
+        fits.setval(name_stacked_cube, 'CRPIX2', value=dim_y+1) #?Change the value of number of pixels on Y axis
+        fits.setval(name_stacked_cube, 'CRPIX3', value=int(num_channels_cubelets/2)) #?Change the channel of reference: now it's the centered channel
+        fits.setval(name_stacked_cube, 'CRVAL3', value=rest_freq) #?Change the value of the channel of reference: now it's the HI emission
+
+    #* We plot the spectrum of the central spaxel (where all the galaxies lie)
+    plot_spaxel_spectrum(stacked_data_cube, num_galaxies, rest_freq, channel_to_freq, num_channels_cubelets, flux_units, central_spaxel, central_spaxel, 10**6, 'Results/stacked_data_central_spaxel')
+
+if __name__ == '__main__':
+    main()

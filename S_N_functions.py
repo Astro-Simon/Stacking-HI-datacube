@@ -2,7 +2,7 @@ from functions import extract_spectrum_from_spatial_circular_region, fit_continu
 import numpy as np
 import matplotlib.pyplot as plt
 
-def S_N_calculation(datacube, wcs, num_channels, center_x, center_y, emission_channel, L, C):
+def S_N_calculation(datacube, wcs, num_channels, center_x, center_y, emission_channel, L, C, degree_fit_continuum):
     """
     Metafunction that calculates the S/N ratio of a datacube in a circular region integrating the spaxels first.
 
@@ -22,14 +22,14 @@ def S_N_calculation(datacube, wcs, num_channels, center_x, center_y, emission_ch
 
     spectrum = extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels, center_x, center_y, L)
 
-    new_continuum, new_spectrum, new_central_region, mask = fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, C)
+    new_continuum, new_spectrum, new_central_region, mask = fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, C, degree_fit_continuum)
 
     std_dev = np.nanstd(new_continuum)
     S_N = np.nansum(new_central_region)/(std_dev*np.sqrt(2*C+1))
 
     return S_N
 
-def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, wcs, center_x, center_y, emission_channel, rest_freq_HI, channel_to_freq, flux_units):
+def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, wcs, center_x, center_y, emission_channel, rest_freq, channel_to_freq, flux_units, degree_fit_continuum):
     """
     Metafunction that calculates the best combination of (L, C) in order to estimate the S/N ratio of a datacube in a circular region integrating the spaxels first.
 
@@ -41,7 +41,7 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
     - center_x [float]: Horizontal position of the center of the circular region
     - center_y [float]: Vertical position of the center of the circular region
     - emission_channel [int]: Central channel of the emission line
-    - rest_freq_HI [float]: Frequency around which spectra are shifted and wrapped
+    - rest_freq [float]: Frequency around which spectra are shifted and wrapped
     - channel_to_freq [float]: Ratio between channel and frequency
     - flux_units [string]: Units of the flux
 
@@ -61,7 +61,7 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
         integrated_spectrum = extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels_cubelets, center_x, center_y, L)
 
         for C in range(C_min, C_max):
-            new_continuum, new_spectrum, new_central_region, mask = fit_continuum_of_spectrum(integrated_spectrum, num_channels_cubelets, emission_channel, C)
+            new_continuum, new_spectrum, new_central_region, mask = fit_continuum_of_spectrum(integrated_spectrum, num_channels_cubelets, emission_channel, C, degree_fit_continuum)
 
             std_dev = np.nanstd(new_continuum)
             S_N = np.nansum(new_central_region)/(std_dev*np.sqrt(2*C+1))
@@ -73,8 +73,7 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
             
             #print(Signal_to_noise_ratio)
 
-            
-            if (C==50 and L==7):
+            if (C==118 and L==4):
                 full_channels = np.linspace(0, num_channels_cubelets, num_channels_cubelets)
                 spectrum_central_region = integrated_spectrum[emission_channel-C:emission_channel+C+1]
                 continuum = np.concatenate((integrated_spectrum[:emission_channel-C-1], np.repeat(np.nan, int(2*C+1)), integrated_spectrum[emission_channel+C:]))
@@ -95,8 +94,6 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
                 fig.tight_layout()
                 plt.savefig("Verification_process/SN_best/SN_continuum_fit.pdf")
 
-                #!!! C==119 and L==2
-
                 """print(np.linspace(1, center_channel-C-1, center_channel-C-1), len(np.linspace(1, center_channel-C-1, center_channel-C-1)))
                 print(np.linspace(center_channel-C, center_channel+C, 2*C+1), len(np.linspace(center_channel-C, center_channel+C, 2*C+1)))
                 print(np.linspace(center_channel+C+1, num_channels_cubelets, num_channels_cubelets - center_channel - C), len(np.linspace(center_channel+C+1, num_channels_cubelets, num_channels_cubelets - center_channel - C)))"""
@@ -106,7 +103,7 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
                 ax.set_xlabel("Channels")
                 ax.set_ylabel(r"Flux density (%s)" %flux_units, labelpad=12.0)
 
-                freq_axis = np.linspace(rest_freq_HI-channel_to_freq*num_channels_cubelets/2, rest_freq_HI+channel_to_freq*num_channels_cubelets/2, num_channels_cubelets)*10**(-6)
+                freq_axis = np.linspace(rest_freq-channel_to_freq*num_channels_cubelets/2, rest_freq+channel_to_freq*num_channels_cubelets/2, num_channels_cubelets)*10**(-6)
                 chann_axis = np.linspace(1, num_channels_cubelets, num_channels_cubelets)
 
                 ax.grid(True, alpha=0.5, which="minor", ls=":")

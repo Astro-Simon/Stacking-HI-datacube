@@ -100,7 +100,7 @@ def extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels, c
 
     return integrated_spectrum
 
-def fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, semirange):
+def fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, semirange, degree):
     """
     Function that fits the continuum of a spectrum where lies an emission line.
 
@@ -124,13 +124,12 @@ def fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, semirang
     #?print(len(spectrum[:emission_channel-C-1]), len(spectrum[emission_channel+C:]), num_channels)
     #?print(spectrum[:emission_channel-C])
 
-    #* Let's calculate the standard deviation of the continuum outside the central region
-    #!!! First we have to fit it to a 1-degree polynomial so it. Make the user decides
+    #* Let's calculate the standard deviation of the continuum outside the central region. First we fit the continuum
     #?First degree fit
     with warnings.catch_warnings(): #?Ignore warnings
         warnings.simplefilter('ignore')
         linfitter = fitting.LinearLSQFitter()
-        poly_cont_1 = linfitter(models.Polynomial1D(1), np.linspace(1, num_channels, num_channels)[np.isfinite(continuum)], continuum[np.isfinite(continuum)])
+        poly_cont_1 = linfitter(models.Polynomial1D(degree), np.linspace(1, num_channels, num_channels)[np.isfinite(continuum)], continuum[np.isfinite(continuum)])
 
     with warnings.catch_warnings(): #?Ignore warnings
         warnings.simplefilter('ignore')
@@ -147,14 +146,14 @@ def fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, semirang
 
     return fitted_continuum, fitted_spectrum, fitted_central_region, mask
 
-def plot_spaxel_spectrum(datacube, num_galaxies, rest_freq_HI, channel_to_freq, num_channels_cubelets, flux_units, spaxel_x, spaxel_y, factor, name): #!!! Can I use 'kwargs' for variables like 'num_galaxies', 'factor', 'name'? If yes, how?
+def plot_spaxel_spectrum(datacube, num_galaxies, rest_freq, channel_to_freq, num_channels_cubelets, flux_units, spaxel_x, spaxel_y, factor, name): #!!! Can I use 'kwargs' for variables like 'num_galaxies', 'factor', 'name'? If yes, how?
     """
     Function that plot the spectrum of the spaxel of a datacube.
 
     • Input
     - datacube [array - float]: Array of fluxes of the datacube
     - num_galaxies [int]: Number of galaxies of the sample
-    - rest_freq_HI [float]: Frequency around which spectra are shifted and wrapped
+    - rest_freq [float]: Frequency around which spectra are shifted and wrapped
     - channel_to_freq [float]: Ratio between channel and frequency
     - num_channels_cubelets [int]: Number of channels in spectral axis
     - flux_units [string]: Units of the flux
@@ -175,7 +174,7 @@ def plot_spaxel_spectrum(datacube, num_galaxies, rest_freq_HI, channel_to_freq, 
     ax2.set_xlabel("Channels")
     ax.set_ylabel(r"Flux density ($10^{-6}$ %s)" %flux_units, labelpad=12.0)
 
-    freq_axis = np.linspace(rest_freq_HI-channel_to_freq*num_channels_cubelets/2, rest_freq_HI+channel_to_freq*num_channels_cubelets/2, num_channels_cubelets)*10**(-6)
+    freq_axis = np.linspace(rest_freq-channel_to_freq*num_channels_cubelets/2, rest_freq+channel_to_freq*num_channels_cubelets/2, num_channels_cubelets)*10**(-6)
     chann_axis = np.linspace(1, num_channels_cubelets, num_channels_cubelets)
 
     ax.grid(True, alpha=0.5, which="minor", ls=":")
@@ -193,7 +192,7 @@ def plot_spaxel_spectrum(datacube, num_galaxies, rest_freq_HI, channel_to_freq, 
 
     #plt.plot(new_X_axis, avg_spectrum, '-.', color='midnightblue', alpha=1, label='Average spectrum')
 
-    ax.vlines(rest_freq_HI/1e6, min(spectrum), max(spectrum), linestyles='dashdot', color='red', label='HI position',  alpha=1, zorder=0)
+    ax.vlines(rest_freq/1e6, min(spectrum), max(spectrum), linestyles='dashdot', color='red', label='HI position',  alpha=1, zorder=0)
 
     ax.legend(loc='best')
 
