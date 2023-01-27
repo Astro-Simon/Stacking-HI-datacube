@@ -3,6 +3,7 @@ import os
 import csv
 from astropy.io import fits
 from astropy.wcs import WCS
+import argparse
 
 def copy_header(name_orig_cube):
     """ 
@@ -14,7 +15,7 @@ def copy_header(name_orig_cube):
 
     • Output
     - wcs [WCS]: WCS of the file
-    - rest_freq_HI [float]: Rest frequency of HI emission Original rest frequency of the datacube
+    - rest_freq [float]: Rest frequency of HI emission Original rest frequency of the datacube
     - pixel_X_to_AR [float]: Ratio pixel X (pix)/AR (deg)
     - pixel_Y_to_Dec [float]: Ratio pixel Y (pix)/Dec (deg)
     - channel_to_freq [float]: Ratio between channel and frequency
@@ -58,11 +59,10 @@ def copy_header(name_orig_cube):
     pixel_Y_to_Dec = float(hdr['CDELT2'])
     channel_to_freq = float(hdr['CDELT3'])
     try:
-        rest_freq_HI = float(hdr['RESTFRQ'])
+        rest_freq = float(hdr['RESTFRQ'])
     except:
         print("\nWARNING: The rest frequency is missing.")
         exit()
-        #-rf ARGUMENT PARSER image_pipeline of SoFiA and argument of functions
 
     X_AR_ini = float(hdr['CRVAL1']) - pixel_X_to_AR*float(hdr['CRPIX1'])
     X_AR_final = float(hdr['CRVAL1']) + pixel_X_to_AR*float(hdr['NAXIS1']-1)
@@ -95,7 +95,7 @@ def copy_header(name_orig_cube):
     hdul.close()
 
     #!!! What happens if one of these variables are not in the header? Should I create the variable, try to update it if the value is found, and then return it?
-    return wcs, rest_freq_HI, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels
+    return wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels
 
 def data_and_catalog_extraction(name_orig_cube, extension):
     """
@@ -107,7 +107,7 @@ def data_and_catalog_extraction(name_orig_cube, extension):
 
     • Output
     - wcs [WCS]: WCS of the file
-    - rest_freq_HI [float]: Rest frequency of HI emission Original rest frequency of the datacube
+    - rest_freq [float]: Rest frequency of HI emission Original rest frequency of the datacube
     - pixel_X_to_AR [float]: Ratio pixel X (pix)/AR (deg)
     - pixel_Y_to_Dec [float]: Ratio pixel Y (pix)/Dec (deg)
     - channel_to_freq [float]: Ratio between channel and frequency
@@ -126,16 +126,16 @@ def data_and_catalog_extraction(name_orig_cube, extension):
     - z_max [float]: Maximal redshift we have access to with this datacube
     """
     
-    wcs, rest_freq_HI, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels = copy_header(name_orig_cube)
+    wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels = copy_header(name_orig_cube)
 
     data = fits.getdata(name_orig_cube, ext=extension)
     data = data[0]
 
     #* First we determine which redshifts we have access to in this datacube 
-    z_min = rest_freq_HI/freq_final - 1
-    z_max = rest_freq_HI/freq_ini - 1
+    z_min = rest_freq/freq_final - 1
+    z_max = rest_freq/freq_ini - 1
 
-    return wcs, rest_freq_HI, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, z_min, z_max
+    return wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, z_min, z_max
 
 def get_galaxies_positions(name_catalog, z_min, z_max):
     """
