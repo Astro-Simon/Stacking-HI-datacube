@@ -1,4 +1,4 @@
-"""def noise_stack_shift(num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq_HI, freq_ini, channel_to_freq):
+"""def noise_stack_shift(num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq):
     #* We start by shifting all the galaxies' positions 10 arcsec (5 px) on the left/right and up/down
     shift = 5 #* Shift in pixels
 
@@ -21,14 +21,14 @@
     noise_cubelets = get_cubelets(num_galaxies, num_channels_cubelets, num_pixels_cubelets, list_pixels_X, list_pixels_Y, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units)
     
     #* Now we get the noise cubelets with their spectra shifted to rest-frame and wrapped
-    shifted_noise_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq_HI, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, noise_cubelets)
+    shifted_noise_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, noise_cubelets)
 
     #* Make the stacking of the cubelets
     stacked_noise_cube = stacking_process(num_channels_cubelets, num_pixels_cubelets, shifted_noise_cubelets)
 
     return stacked_noise_cube"""
     
-"""def noise_stack_random(num_galaxies, num_pixels_X, num_pixels_Y, num_channels_cubelets, num_pixels_cubelets, X_AR_ini, Y_DEC_ini, pixel_X_to_AR, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq_HI, freq_ini, channel_to_freq):
+"""def noise_stack_random(num_galaxies, num_pixels_X, num_pixels_Y, num_channels_cubelets, num_pixels_cubelets, X_AR_ini, Y_DEC_ini, pixel_X_to_AR, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq):
     
     #* 2. Random positions of the datacube so cubelets are not centered on galaxies' positions
     list_pixels_X = np.zeros(num_galaxies, int) #* Right ascension coordinates of each galaxy
@@ -44,14 +44,14 @@
     #* Get the cubelets with random positionsnum_pixels_cubelets
     noise_cubelets = get_cubelets(num_galaxies, num_channels_cubelets, num_pixels_cubelets, list_pixels_X, list_pixels_Y, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units)
     #* Now we get the noise cubelets with their spectra shifted to rest-frame and wrapped
-    shifted_noise_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq_HI, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, noise_cubelets)
+    shifted_noise_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, noise_cubelets)
 
     #* Make the stacking of the cubelets
     stacked_noise_cube = stacking_process(num_channels_cubelets, num_pixels_cubelets, shifted_noise_cubelets)
 
     return stacked_noise_cube"""
 
-"""def noise_stack_Healy(num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq_HI, freq_ini, channel_to_freq, show_verifications):
+"""def noise_stack_Healy(num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, show_verifications):
     
     Metafunction that extract the cubelets of the data, shift and wrap them and stack them but switching the redshift of each galaxy so we get a noise datacube.
 
@@ -67,7 +67,7 @@
     - wcs [WCS]: WCS of the file
     - flux_units [string]: Units of the flux
     - redshifts [array - float]: Redshifts of all the galaxies
-    - rest_freq_HI [float]: Frequency around which spectra are shifted and wrapped
+    - rest_freq [float]: Frequency around which spectra are shifted and wrapped
     - freq_ini [float]: Initial frequency (Hz)
     - channel_to_freq [float]: Ratio between channel and frequency
     - central_width [int]: Number of channels where we consider the central (HI) lies; used for calculating sigma
@@ -86,7 +86,7 @@
     redshifts = random.sample(list(redshifts), len(redshifts))
 
     #* Now we get the noise cubelets with their spectra shifted to rest-frame and wrapped
-    shifted_noise_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq_HI, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, noise_cubelets)
+    shifted_noise_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, noise_cubelets)
 
     #* Make the stacking of the cubelets
     stacked_noise_cube = stacking_process(num_channels_cubelets, num_pixels_cubelets, shifted_noise_cubelets)
