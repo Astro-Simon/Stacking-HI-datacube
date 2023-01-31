@@ -19,7 +19,9 @@ from argparse import ArgumentParser, RawTextHelpFormatter
 from astropy.cosmology import FlatLambdaCDM
 from astropy.io import fits
 import astropy.units as u
+from astropy.coordinates import Angle
 import matplotlib.pyplot as plt
+import numpy as np
 import sys
 import time
 
@@ -81,6 +83,7 @@ weights_option = 'fabello'
 lum_distance = 0.
 degree_fit_continuum = 1 #* Degree of fit of continuum around emission lines
 num_pixels_cubelets = 10 #* We are going to extract cubelets of 20x20 px^2 around each galaxy for data and noise stack
+semi_distance_around_galaxies = 40*u.kpc #* We are going to extract cubelets of 81x81 kpc^2 around each galaxy for data and noise stack
 central_width = 25 #* Number of channels around which the emission is supposed to be located. We use it to extract the continuum of the spectra and calculate sigmas (for weights) !!!Correct value?
 num_channels_cubelets = 242 #* Half-range of channels around the galaxy emission we select and use in the cubelets
 central_spaxel = int(num_pixels_cubelets+1)
@@ -150,18 +153,25 @@ def main():
     original = args.original
     imagemagick = args.imagemagick"""
     
-    wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, z_min, z_max = data_and_catalog_extraction(name_orig_data_cube, 0)
+    wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, z_min, z_max = data_and_catalog_extraction(name_orig_data_cube, 0) #!!! Lots of unnecessary values
 
     print(f'\nWe are going to stack galaxies with redshift between {z_min:.3f} < z < {z_max:.3f} .\n')
 
+    #!Extract from the catalog the 3D positions of the galaxies
     coords_RA, coords_DEC, redshifts, num_galaxies = get_galaxies_positions(name_catalog, z_min, z_max)
+
+    num_pixels_cubelets = np.zeros(num_galaxies) #* For each galaxy we calculate the number of pixels we need to get the same physical area determined by semi_distance_around_galaxies
+    for index, z in enumerate(redshifts):
+        d_A = cosmo.angular_diameter_distance(z)
+        theta = Angle(np.arctan(semi_distance_around_galaxies/d_A), u.radian)
+        num_pixels_cubelets[index] = int(theta.degree/pixel_scale) #!!!Shouldn't use "int" ?!?!
 
     if(num_channels_cubelets%2==0): # Even number of channels
         emission_channel = int(num_channels_cubelets/2)
     else: # Odd number of channels
         emission_channel = int(num_channels_cubelets/2) + 1
 
-    print(f'Stacking {num_galaxies} cubelets of {int(abs(pixel_X_to_AR)*3600*(num_pixels_cubelets+1))}"x{int(abs(pixel_Y_to_Dec)*3600*(num_pixels_cubelets+1))}"x{num_channels_cubelets*channel_to_freq/1e6:.2f} MHz...\n\n')
+    print(f'Stacking {num_galaxies} cubelets of ~{int(abs(pixel_X_to_AR)*3600*(int(np.mean(num_pixels_cubelets))+1))}"x{int(abs(pixel_Y_to_Dec)*3600*(int(np.mean(num_pixels_cubelets))+1))}"x{num_channels_cubelets*channel_to_freq/1e6:.2f} MHz...\n\n')
 
     #! Get stacked data datacube
     #tic = time.perf_counter()
@@ -182,20 +192,6 @@ def main():
     print("PSF stacked cube obtained!\n")
 
     #! Get stacked noises datacube and calculate their S/N ratio
-    """#? Positions shifted
-    stacked_noise_cube_shift = noise_stack_shift(num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq)
-    print("\nShift-noise stacked cube obtained!")
-
-    S_N_noise_shift = S_N_calculation(stacked_noise_cube_shift, wcs, num_channels_cubelets, central_spaxel, central_spaxel, emission_channel, L_best, C_best)
-    print("S/N of noise cube from shifted positions: %f!\n" %S_N_noise_shift)
-
-    #? Random positions
-    stacked_noise_cube_random = noise_stack_random(num_galaxies, num_pixels_X, num_pixels_Y, num_channels_cubelets, num_pixels_cubelets, X_AR_ini, Y_DEC_ini, pixel_X_to_AR, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq)
-    print("\nRandom-noise stacked cube obtained!")
-
-    S_N_noise_random = S_N_calculation(stacked_noise_cube_random, wcs, num_channels_cubelets, central_spaxel, central_spaxel, emission_channel, L_best, C_best)
-    print("S/N of noise cube from random positions: %f!\n" %S_N_noise_random)"""
-
     #? Redshifts switched
     stacked_noise_cube_Healy = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, emission_channel, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, weights_option, lum_distance, show_verifications) #!!! Should I re-use the results from the data datacube?
     print("Healy-noise stacked cube obtained!")
