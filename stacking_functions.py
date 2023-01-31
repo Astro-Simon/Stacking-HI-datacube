@@ -53,7 +53,7 @@ def get_cubelets(num_galaxies, num_channels_cubelets, num_pixels_cubelets, coord
         except:
             cubelets[i] = np.zeros(cubelets[i].shape) 
             
-            print("\nWe could not extract the cubelet centered on (x, y) = (%i, %i).\n" %(list_pixels_X[i], list_pixels_Y[i]))
+            print(f"\nWe could not extract the cubelet centered on (x, y) = ({list_pixels_X[i]}, {list_pixels_Y[i]}).\n")
 
     return cubelets
 
@@ -94,7 +94,7 @@ def shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq
 
     return shifted_wrapped_cubelets
 
-def stacking_process(num_galaxies, num_channels_cubelets, num_pixels_cubelets, central_width, shifted_wrapped_cubelets, weights_option, lum_distance):
+def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, central_width, shifted_wrapped_cubelets, weights_option, lum_distance):
     """ 
     Function that stack the subelets.
 
@@ -114,7 +114,7 @@ def stacking_process(num_galaxies, num_channels_cubelets, num_pixels_cubelets, c
 
     stacked_cube = np.zeros((num_channels_cubelets, 2*num_pixels_cubelets+1, 2*num_pixels_cubelets+1))
     
-    with alive_bar((2*num_pixels_cubelets+1)*(2*num_pixels_cubelets+1)*num_galaxies, bar='circles') as bar:
+    with alive_bar((2*num_pixels_cubelets+1)*(2*num_pixels_cubelets+1)*num_galaxies, bar='circles', title=f'{type_of_datacube} stacking in progress') as bar:
         for pixel_Y in range(2*num_pixels_cubelets+1):
             for pixel_X in range(2*num_pixels_cubelets+1):
                 rescale = 0
@@ -228,6 +228,6 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
 
     #* The number of channels for the new spectrum will be 242*2, which is the maximum number of channels that can be necessary for co-adding the spectra (supposing HI line in channel 1 and in channel 242 for two different spectra).
 
-    stacked_cube = stacking_process(num_galaxies, num_channels_cubelets, num_pixels_cubelets, central_width, shifted_wrapped_cubelets, weights_option, lum_distance)
+    stacked_cube = stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, central_width, shifted_wrapped_cubelets, weights_option, lum_distance)
 
     return stacked_cube

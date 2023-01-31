@@ -152,7 +152,7 @@ def main():
     
     wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, z_min, z_max = data_and_catalog_extraction(name_orig_data_cube, 0)
 
-    print('\nWe are going to stack galaxies with redshift between %.3f < z < %.3f.\n' %(z_min, z_max))
+    print(f'\nWe are going to stack galaxies with redshift between {z_min:.3f} < z < {z_max:.3f} .\n')
 
     coords_RA, coords_DEC, redshifts, num_galaxies = get_galaxies_positions(name_catalog, z_min, z_max)
 
@@ -161,16 +161,17 @@ def main():
     else: # Odd number of channels
         emission_channel = int(num_channels_cubelets/2) + 1
 
-    print('Stacking %i cubelets of %i"x%i"x%.2f MHz...' %(num_galaxies, int(abs(pixel_X_to_AR)*3600*(num_pixels_cubelets+1)), int(abs(pixel_Y_to_Dec)*3600*(num_pixels_cubelets+1)), num_channels_cubelets*channel_to_freq/1e6))
+    print(f'Stacking {num_galaxies} cubelets of {int(abs(pixel_X_to_AR)*3600*(num_pixels_cubelets+1))}"x{int(abs(pixel_Y_to_Dec)*3600*(num_pixels_cubelets+1))}"x{num_channels_cubelets*channel_to_freq/1e6:.2f} MHz...\n\n')
 
     #! Get stacked data datacube
-    tic = time.perf_counter()
+    #tic = time.perf_counter()
     stacked_data_cube = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, emission_channel, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, weights_option, lum_distance, show_verifications)
-    toc = time.perf_counter()
-    print(f"\nData stacked cube obtained in {(toc - tic):0.4f} seconds!")
+    #toc = time.perf_counter()
+    print(f"Data stacked cube obtained!")
 
     #! Calculate best (L, C) combination for S/N measurement
     L_best, C_best, S_N_data = S_N_measurement_test(stacked_data_cube, num_pixels_cubelets, num_channels_cubelets, wcs, central_spaxel, central_spaxel, emission_channel, rest_freq, channel_to_freq, flux_units, degree_fit_continuum)
+    print(f"Best combination of (L, C) in order to calculate S/N: L={L_best}, C={C_best}. Best S/N: {S_N_data:.3f}.\n")
 
     #! Get stacked PSF datacube
     PSF = fits.getdata(name_orig_PSF_cube, ext=0)
@@ -178,7 +179,7 @@ def main():
     stacked_PSF_cube = datacube_stack('PSF', num_galaxies, num_channels_cubelets, 2*num_pixels_cubelets, emission_channel, None, None, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, PSF, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, weights_option, lum_distance, show_verifications)
     #!!! Should we use weights for the PSF in the stacking process??
 
-    print("\nPSF stacked cube obtained!")
+    print("PSF stacked cube obtained!\n")
 
     #! Get stacked noises datacube and calculate their S/N ratio
     """#? Positions shifted
@@ -197,10 +198,10 @@ def main():
 
     #? Redshifts switched
     stacked_noise_cube_Healy = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, emission_channel, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, weights_option, lum_distance, show_verifications) #!!! Should I re-use the results from the data datacube?
-    print("\nHealy-noise stacked cube obtained!")
+    print("Healy-noise stacked cube obtained!")
 
     S_N_noise_Healy = S_N_calculation(stacked_noise_cube_Healy, wcs, num_channels_cubelets, central_spaxel, central_spaxel, emission_channel, L_best, C_best, degree_fit_continuum)
-    print("S/N of noise cube from switched redshifts: %f!\n" %S_N_noise_Healy)
+    print(f"S/N of noise cube from switched redshifts: {S_N_noise_Healy:.3f}!\n")
 
     names = ["data_stack.fits", "PSF_stack.fits", "noise_stack_Healy.fits"]
     names_original = [name_orig_data_cube, name_orig_PSF_cube, name_orig_data_cube]

@@ -121,7 +121,7 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
 
                 plt.tight_layout()
 
-                plt.savefig('Verification_process/SN_best/regions_SN_spectrum_%i_%i.pdf' %(L, C))
+                plt.savefig(f'Verification_process/SN_best/regions_SN_spectrum_{L}_{C}.pdf')
 
                 """print(np.nanstd(continuum), np.nanstd(new_continuum))
                 print(amplitud)
@@ -129,8 +129,6 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
                 print(result.fit_report())"""
             index_array_C += 1
         index_array_L += 1
-    
-    print("Best combination of (L, C) in order to calculate S/N: L=%i, C=%i. Best S/N: %f.\n" %(L_best, C_best, S_N_best))
             
     fig, ax = plt.subplots(figsize=(9, 7.20))
     
