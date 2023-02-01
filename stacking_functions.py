@@ -4,7 +4,7 @@ import random
 from alive_progress import alive_bar
 import numina.array
 
-def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_original, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, is_PSF, show_verifications):
+def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, is_PSF, show_verifications):
     """
     Function that extract cubelets around the galaxies of the data datacube. We extract the whole spectral range.
 
@@ -44,18 +44,41 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
     #* Now we extract the sub-cubes (cubelets) of num_pixels_cubelets*num_pixels_cubelets px^2 around each galaxy, so the galaxies are spatially centered in their cubelet
     #!!! Have to do something if the galaxy is on the edge of the area of the cube: the spaxels that are out of the boundaries should have null spectra (?)
     cubelets = []#np.zeros((num_galaxies, num_channels_cubelets, 2*num_pixels_cubelets+1, 2*num_pixels_cubelets+1)) #*Number of galaxies, spectral length, Y length, X length
-    for index in range(num_galaxies):
-        y_min = int(list_pixels_Y[index] - num_pixels_cubelets[index])
-        y_max = int(list_pixels_Y[index] + num_pixels_cubelets[index]+1)
-        x_min = int(list_pixels_X[index] - num_pixels_cubelets[index])
-        x_max = int(list_pixels_X[index] + num_pixels_cubelets[index]+1)
+    for index, z in enumerate(redshifts):
+        emission_position = rest_freq/(1+z) #* Frequency of the position of the emission line (spectral observational position - not at rest)
+        channel_emission = int((emission_position - freq_ini)/channel_to_freq) #* Channel of the emission line (spectral observational position - not at rest)
+        num_pixels = num_pixels_cubelets[index]
+        num_channels = num_channels_cubelets[index]
+        max_range = datacube.shape[0]
+        z_min = int(channel_emission - num_channels)
+        z_max = int(channel_emission + num_channels + 1)
+        y_min = int(list_pixels_Y[index] - num_pixels)
+        y_max = int(list_pixels_Y[index] + num_pixels + 1)
+        x_min = int(list_pixels_X[index] - num_pixels)
+        x_max = int(list_pixels_X[index] + num_pixels + 1)
         try:
-            cubelets.append(datacube[:, y_min:y_max, x_min:x_max])
+            if(z_min >= 0):
+                if(z_max < max_range):
+                    cubelets.append(datacube[z_min:z_max, y_min:y_max, x_min:x_max])
+                else:
+                    cubelets.append(np.concatenate((datacube[z_min:, y_min:y_max, x_min:x_max], datacube[:z_max-max_range, y_min:y_max, x_min:x_max])))
+            else:
+                cubelets.append(np.concatenate((datacube[z_min:, y_min:y_max, x_min:x_max], datacube[:z_max, y_min:y_max, x_min:x_max])))
+                
         except:
             print("\nEmpty cubelet :(")
             #cubelets.append(np.zeros(cubelets[i].shape))
-            
             print(f"\nWe could not extract the cubelet centered on (x, y) = ({list_pixels_X[i]}, {list_pixels_Y[i]}).\n")
+
+        if(cubelets[index].shape[0] == 0):
+            print("\nMala onda\n")
+            exit()
+
+        if(cubelets[index].shape[0] == 457):
+            print("alors", channel_emission, num_channels)
+            exit()
+        
+          
     return cubelets    
 
 def shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, num_channels_original, num_pixels_cubelets, cubelets):
@@ -81,8 +104,8 @@ def shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq
     shifted_wrapped_cubelets = []
     for index, redshift in enumerate(redshifts):
         emission_position = rest_freq/(1+redshift) #* Frequency of the position of the emission line (spectral observational position - not at rest)
-        channel_HI = int((emission_position - freq_ini)/channel_to_freq) #* Channel of the emission line (spectral observational position - not at rest)
-        shift_in_channels = int(expected_emission_channel - channel_HI) #* Number of channels that we have to shift the spectrum in order to center it (-: left, +: right)
+        channel_emission = int((emission_position - freq_ini)/channel_to_freq) #* Channel of the emission line (spectral observational position - not at rest)
+        shift_in_channels = int(expected_emission_channel - channel_emission) #* Number of channels that we have to shift the spectrum in order to center it (-: left, +: right)
         num_pixels = num_pixels_cubelets[index]
         num_channels = num_channels_original
         cubelet = cubelets[index]
@@ -188,7 +211,10 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     - stacked_cube [array - float]: Stacked datacube 
     """
 
-    #* We use the spatial coordinates to determine which spaxels contain a galaxy.
+    #* We use the spatial and spectral coordinates to extract cubelets of the galaxies
+
+    if(type_of_datacube == 'Noise'):
+        redshifts = random.sample(list(redshifts), len(redshifts))
 
     if(type_of_datacube == 'PSF'):
         cubelets = get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, None, None, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, True, show_verifications)
@@ -198,18 +224,15 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     #* Now we shift each spectrum in each subcube to place it in rest frame with its HI emission at central channel
     #!!! Possible problem: if some cubelets have same spaxels (don't know if it's an issue)
 
-    if(type_of_datacube == 'Noise'):
-        redshifts = random.sample(list(redshifts), len(redshifts))
+    #shifted_wrapped_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, datacube.shape[0], num_pixels_cubelets, cubelets)
 
-    shifted_wrapped_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, datacube.shape[0], num_pixels_cubelets, cubelets)
-
-    sub_cubelets = []
+    """sub_cubelets = []
 
     for index, redshift in enumerate(redshifts):
         emission_position = rest_freq/(1+redshift) #* Frequency of the position of the emission line (spectral observational position - not at rest)
-        channel_HI = int((emission_position - freq_ini)/channel_to_freq) #* Channel of the emission line (spectral observational position - not at rest)
+        channel_emission = int((emission_position - freq_ini)/channel_to_freq) #* Channel of the emission line (spectral observational position - not at rest)
         cubelet = shifted_wrapped_cubelets[index]
-        sub_cubelets.append(cubelet[expected_emission_channel-num_channels_cubelets[index]:expected_emission_channel+num_channels_cubelets[index]+1, :, :])
+        sub_cubelets.append(cubelet[expected_emission_channel-num_channels_cubelets[index]:expected_emission_channel+num_channels_cubelets[index]+1, :, :])"""
 
     """
     if(show_verifications):
@@ -246,10 +269,8 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     #* Now we have to re-grid the cubelets so they have the same dimensions before the stacking
     #!!! Should interpolate?!?
     pre_stacking_cubelets = np.zeros((num_galaxies, num_channels_cubelets_final, 2*num_pixels_cubelets_final+1, 2*num_pixels_cubelets_final+1))
-    #print(num_channels_cubelets_final)
     for i in range(num_galaxies):
-        #print(sub_cubelets[i].shape)
-        pre_stacking_cubelets[i] = numina.array.rebin(sub_cubelets[i], (num_channels_cubelets_final, 2*num_pixels_cubelets_final+1, 2*num_pixels_cubelets_final+1))
+        pre_stacking_cubelets[i] = numina.array.rebin(cubelets[i], (num_channels_cubelets_final, 2*num_pixels_cubelets_final+1, 2*num_pixels_cubelets_final+1))
 
     """import matplotlib.pyplot as plt
 

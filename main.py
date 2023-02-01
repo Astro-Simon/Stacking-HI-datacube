@@ -213,16 +213,18 @@ def main():
 
     #! Get stacked noises datacube and calculate their S/N ratio
     # ? Redshifts switched
-    S_N_mean = 0
+
+
+    sn_mean = 0
     for i in range(100):
         stacked_noise_cube_Healy = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, expected_emission_channel, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, num_pixels_cubelets_final, num_channels_cubelets_final, expected_emission_channel_final, weights_option, lum_distance, show_verifications)  # !!! Should I re-use the results from the data datacube?
         print("Healy-noise stacked cube obtained!")
 
         S_N_noise_Healy = S_N_calculation(stacked_noise_cube_Healy, wcs, num_channels_cubelets_final, central_spaxel, central_spaxel, expected_emission_channel_final, L_best, C_best, degree_fit_continuum)
         print(f"S/N of noise cube from switched redshifts: {S_N_noise_Healy:.3f}!\n")
-        S_N_mean += S_N_noise_Healy
+        sn_mean += S_N_noise_Healy
 
-    print(S_N_mean/100)
+    print("\n", sn_mean/100)
 
     names = ["data_stack.fits", "PSF_stack.fits", "noise_stack_Healy.fits"]
     names_original = [name_orig_data_cube, name_orig_PSF_cube, name_orig_data_cube]
