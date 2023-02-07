@@ -58,6 +58,7 @@ def copy_header(name_orig_cube):
     pixel_X_to_AR = float(hdr['CDELT1'])
     pixel_Y_to_Dec = float(hdr['CDELT2'])
     channel_to_freq = float(hdr['CDELT3'])
+    units = hdr['CUNIT3'] #!!! Change units of frequency
     try:
         rest_freq = float(hdr['RESTFRQ'])
     except:

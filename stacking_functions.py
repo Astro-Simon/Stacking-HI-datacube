@@ -1,4 +1,5 @@
 from functions import galaxia_puntos
+from scaling_functions import spatial_scaling
 import numpy as np
 import random
 from alive_progress import alive_bar
@@ -72,10 +73,6 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
 
         if(cubelets[index].shape[0] == 0):
             print("\nMala onda\n")
-            exit()
-
-        if(cubelets[index].shape[0] == 457):
-            print("alors", channel_emission, num_channels)
             exit()
         
           
@@ -220,6 +217,9 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
         cubelets = get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, None, None, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, True, show_verifications)
     else:
         cubelets = get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, False, show_verifications)
+
+    spatially_scaled_cubelets = spatial_scaling(num_galaxies, num_pixels_cubelets, cubelets)
+    spatially_spectrally_scaled_cubelets = spatial_scaling(num_galaxies, num_pixels_cubelets, spatially_scaled_cubelets)
 
     #* Now we shift each spectrum in each subcube to place it in rest frame with its HI emission at central channel
     #!!! Possible problem: if some cubelets have same spaxels (don't know if it's an issue)
