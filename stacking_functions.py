@@ -1,9 +1,10 @@
 from functions import galaxia_puntos
-from scaling_functions import spatial_scaling
+from scaling_functions import spatial_scaling, spectral_scaling
 import numpy as np
 import random
 from alive_progress import alive_bar
 import numina.array
+import math
 
 def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, is_PSF, show_verifications):
     """
@@ -148,10 +149,10 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
             for pixel_X in range(2*num_pixels_cubelets+1):
                 rescale = 0
                 for i in range(num_galaxies):
+                    #print(int(num_channels_cubelets/2)-central_width)
                     continuum_spectrum = np.concatenate((pre_stacking_cubelets[i, :int(num_channels_cubelets/2)-central_width, pixel_Y, pixel_X], pre_stacking_cubelets[i, int(num_channels_cubelets/2)+central_width:, pixel_Y, pixel_X])) #* We use the continuum in order to calculate sigma and use it in the weights
                     sigma = np.std(continuum_spectrum)
 
-                    weight = 1
                     if(weights_option=='fabello'):
                         weight = 1/sigma**2
                     elif(weights_option=='lah'):
@@ -160,6 +161,14 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
                         weight = 1/(sigma*lum_distance**2)**2
                     elif(weights_option=='None'):
                         weight = 1
+                    else:
+                        weight = 1
+
+                    if(math.isinf(weight)):
+                        print(f"mala onda: mirar cubo i={i}")
+                        exit()
+
+                    weight=1
 
                     rescale += weight
                     stacked_cube[:, pixel_Y, pixel_X] += pre_stacking_cubelets[i, :, pixel_Y, pixel_X]*weight
@@ -219,71 +228,31 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
         cubelets = get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, False, show_verifications)
 
     spatially_scaled_cubelets = spatial_scaling(num_galaxies, num_pixels_cubelets, cubelets)
-    spatially_spectrally_scaled_cubelets = spatial_scaling(num_galaxies, num_pixels_cubelets, spatially_scaled_cubelets)
+    spatially_spectrally_scaled_cubelets = spectral_scaling(num_galaxies, num_channels_cubelets, spatially_scaled_cubelets)
+
 
     #* Now we shift each spectrum in each subcube to place it in rest frame with its HI emission at central channel
     #!!! Possible problem: if some cubelets have same spaxels (don't know if it's an issue)
 
     #shifted_wrapped_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, datacube.shape[0], num_pixels_cubelets, cubelets)
 
-    """sub_cubelets = []
+    import matplotlib.pyplot as plt
 
-    for index, redshift in enumerate(redshifts):
-        emission_position = rest_freq/(1+redshift) #* Frequency of the position of the emission line (spectral observational position - not at rest)
-        channel_emission = int((emission_position - freq_ini)/channel_to_freq) #* Channel of the emission line (spectral observational position - not at rest)
-        cubelet = shifted_wrapped_cubelets[index]
-        sub_cubelets.append(cubelet[expected_emission_channel-num_channels_cubelets[index]:expected_emission_channel+num_channels_cubelets[index]+1, :, :])"""
-
-    """
-    if(show_verifications):
-        index, pixel_Y, pixel_X = 32, 6, 9
-        fig, ax = plt.subplots(figsize=(19.2, 10.8))
-
-        ax.plot(np.linspace(1, num_channels_cubelets, num_channels_cubelets), shifted_wrapped_cubelets[index, :, pixel_Y, pixel_X]+np.ones(num_channels_cubelets)*0.0005, label="shifted part")
-        ax.plot(np.linspace(1, num_channels_cubelets, num_channels_cubelets), cubelets[index, :, pixel_Y, pixel_X], label="original")
-        ax.vlines(emission_position, min(cubelets[index, :, pixel_Y, pixel_X]), max(cubelets[index, :, pixel_Y, pixel_X]), linestyles='dashdot', color='red', label='HI position',  alpha=1, zorder=0)
-        ax.vlines(emission_position+my_shift, min(shifted_wrapped_cubelets[index, :, pixel_Y, pixel_X])+0.0005, max(shifted_wrapped_cubelets[index, :, pixel_Y, pixel_X])+0.0005, linestyles='dashdot', color='red', alpha=1, zorder=0)
-        if(my_shift>0):
-            ax.fill_between(np.linspace(0, abs(my_shift), 1000), min(cubelets[32, :, 6, 9])+0.0005, max(cubelets[32, :, 6, 9])+0.0005, color='green', alpha=0.25, label="Shift=%i" %my_shift)
-            ax.fill_between(np.linspace(num_channels_cubelets - abs(my_shift), num_channels_cubelets, 1000), min(shifted_wrapped_cubelets[32, :, 6, 9]), max(shifted_wrapped_cubelets[32, :, 6, 9]), color='green', alpha=0.25)
-        else:
-            ax.fill_between(np.linspace(0, abs(my_shift), 1000), min(cubelets[index, :, pixel_Y, pixel_X]), max(cubelets[index, :, pixel_Y, pixel_X]), color='green', alpha=0.25, label="Shift=%i" %my_shift)
-            ax.fill_between(np.linspace(num_channels_cubelets - abs(my_shift), num_channels_cubelets, 1000), min(shifted_wrapped_cubelets[index, :, pixel_Y, pixel_X])+0.0005, max(shifted_wrapped_cubelets[index, :, pixel_Y, pixel_X])+0.0005, color='green', alpha=0.25)
-        ax.legend(loc='best')
-
-        #?Figure's labels
-        ax.set_xlabel("Channels", labelpad=1)
-        ax.set_ylabel("Relative flux", labelpad=0)
-        ax.set_title('Shift and wrapping processes example')
-        ax.tick_params(axis='y', labelsize=0, length=0)
-
-        #?Save the figure
-        plt.tight_layout()
-        path = '/Verification_process/'
-        if not os.path.isdir(path):
-            os.makedirs(path)
-
-        plt.savefig("%sshift_wrap_process.pdf" %path) #?Guardamos la imagen
-    """
-
-    #* Now we have to re-grid the cubelets so they have the same dimensions before the stacking
-    #!!! Should interpolate?!?
-    pre_stacking_cubelets = np.zeros((num_galaxies, num_channels_cubelets_final, 2*num_pixels_cubelets_final+1, 2*num_pixels_cubelets_final+1))
-    for i in range(num_galaxies):
-        pre_stacking_cubelets[i] = numina.array.rebin(cubelets[i], (num_channels_cubelets_final, 2*num_pixels_cubelets_final+1, 2*num_pixels_cubelets_final+1))
-
-    """import matplotlib.pyplot as plt
-
-    f, axarr = plt.subplots(1, 2, figsize=(12.8, 7.2))
 
     # use the created array to output your multiple images. In this case I have stacked 4 images vertically
-    axarr[0].imshow(shifted_wrapped_cubelets[3][121, :, :])
-    axarr[1].imshow(pre_stacking_cubelets[3, 121, :, :])
+    """for i in range(spatially_spectrally_scaled_cubelets.shape[1]):
+        f, axarr = plt.subplots(1, 2, figsize=(12.8, 7.2))
+        axarr[0].imshow(spatially_spectrally_scaled_cubelets[2][i, :, :])
+        axarr[1].imshow(cubelets[2][i, :, :])
 
-    plt.show()"""
+        plt.show()"""
     
     #* The number of channels for the new spectrum will be 242*2, which is the maximum number of channels that can be necessary for co-adding the spectra (supposing emission line in channel 1 and in channel 242 for two different spectra).
+    print(spatially_spectrally_scaled_cubelets.shape)
 
-    stacked_cube = stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets_final, num_pixels_cubelets_final, central_width, pre_stacking_cubelets, weights_option, lum_distance)
+    num_channels = int(spatially_spectrally_scaled_cubelets.shape[1])
+    num_pixels = int((spatially_spectrally_scaled_cubelets.shape[2]-1)/2)
+
+    stacked_cube = stacking_process(type_of_datacube, num_galaxies, num_channels, num_pixels, central_width, spatially_spectrally_scaled_cubelets, weights_option, lum_distance)
 
     return stacked_cube
