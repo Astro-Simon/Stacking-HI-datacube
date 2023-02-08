@@ -12,7 +12,7 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
 
     • Input
     - num_galaxies [int]: Number of galaxies of the sample
-    - num_channels_cubelets [array - int]: Number of channels in spectral axis extracted around each galaxy's emission line
+    - num_channels_cubelets [array - int]: Semirange of channels in spectral axis extracted around each galaxy's emission line
     - num_pixels_cubelets [array - int]: Semirange of spaxels extracted around each galaxy
     - list_pixels_X [array - int]: Horizontal positions of the galaxies
     - list_pixels_Y [array - int]: Vertical positions of the galaxies
@@ -130,7 +130,7 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
 
     • Input
     - num_galaxies [int]: Number of galaxies of the sample
-    - num_channels_cubelets [int]: Number of channels in spectral axis
+    - num_channels_cubelets [int]: Semirange of channels in spectral axis
     - num_pixels_cubelets [int]: Semirange of spaxels extracted around each galaxy
     - central_width [int]: Number of channels where we consider the central (HI) lies; used for calculating sigma
     - pre_stacking_cubelets [array - float]: Array of cubelets shifted and wrapped of each galaxy
@@ -142,14 +142,13 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
     - stacked_cube [array - float]: Stacked datacube 
     """
 
-    stacked_cube = np.zeros((num_channels_cubelets, 2*num_pixels_cubelets+1, 2*num_pixels_cubelets+1))
+    stacked_cube = np.zeros((2*num_channels_cubelets+1, 2*num_pixels_cubelets+1, 2*num_pixels_cubelets+1))
     
     with alive_bar((2*num_pixels_cubelets+1)*(2*num_pixels_cubelets+1)*num_galaxies, bar='circles', title=f'{type_of_datacube} stacking in progress') as bar:
         for pixel_Y in range(2*num_pixels_cubelets+1):
             for pixel_X in range(2*num_pixels_cubelets+1):
                 rescale = 0
                 for i in range(num_galaxies):
-                    #print(int(num_channels_cubelets/2)-central_width)
                     continuum_spectrum = np.concatenate((pre_stacking_cubelets[i, :int(num_channels_cubelets/2)-central_width, pixel_Y, pixel_X], pre_stacking_cubelets[i, int(num_channels_cubelets/2)+central_width:, pixel_Y, pixel_X])) #* We use the continuum in order to calculate sigma and use it in the weights
                     sigma = np.std(continuum_spectrum)
 
@@ -163,10 +162,6 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
                         weight = 1
                     else:
                         weight = 1
-
-                    if(math.isinf(weight)):
-                        print(f"mala onda: mirar cubo i={i}")
-                        exit()
 
                     weight=1
 
@@ -185,13 +180,13 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
     
     return stacked_cube
 
-def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, expected_emission_channel, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, num_pixels_cubelets_final, num_channels_cubelets_final, expected_emission_channel_final, weights_option, lum_distance, show_verifications):
+def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, num_pixels_cubelets_final, num_channels_cubelets_final, weights_option, lum_distance, show_verifications):
     """
     Metafunction that extract the cubelets, shift and wrap them and stack them.
 
     • Input
     - num_galaxies [int]: Number of galaxies of the sample
-    - num_channels_cubelets [array - int]: Number of channels in spectral axis extracted around each galaxy's emission line
+    - num_channels_cubelets [array - int]: Semirange of channels in spectral axis extracted around each galaxy's emission line
     - num_pixels_cubelets [array - int]: Semirange of spaxels extracted around each galaxy
     - coords_RA [array - float]: List of the horizontal coordinates of each galaxy (in deg)
     - coords_DEC [array - float]: List of the vertical coordinates of each galaxy (in deg)
@@ -236,11 +231,8 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
 
     #shifted_wrapped_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, datacube.shape[0], num_pixels_cubelets, cubelets)
 
-    import matplotlib.pyplot as plt
-
-
-    # use the created array to output your multiple images. In this case I have stacked 4 images vertically
-    """for i in range(spatially_spectrally_scaled_cubelets.shape[1]):
+    """import matplotlib.pyplot as plt
+    for i in range(spatially_spectrally_scaled_cubelets.shape[1]):
         f, axarr = plt.subplots(1, 2, figsize=(12.8, 7.2))
         axarr[0].imshow(spatially_spectrally_scaled_cubelets[2][i, :, :])
         axarr[1].imshow(cubelets[2][i, :, :])
@@ -248,9 +240,8 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
         plt.show()"""
     
     #* The number of channels for the new spectrum will be 242*2, which is the maximum number of channels that can be necessary for co-adding the spectra (supposing emission line in channel 1 and in channel 242 for two different spectra).
-    print(spatially_spectrally_scaled_cubelets.shape)
 
-    num_channels = int(spatially_spectrally_scaled_cubelets.shape[1])
+    num_channels = int((spatially_spectrally_scaled_cubelets.shape[1]-1)/2)
     num_pixels = int((spatially_spectrally_scaled_cubelets.shape[2]-1)/2)
 
     stacked_cube = stacking_process(type_of_datacube, num_galaxies, num_channels, num_pixels, central_width, spatially_spectrally_scaled_cubelets, weights_option, lum_distance)

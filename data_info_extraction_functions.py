@@ -80,7 +80,7 @@ def copy_header(name_orig_cube):
 
     pixel_scale = np.sqrt(np.abs(pixel_X_to_AR*pixel_Y_to_Dec)) #!!! Supposing the pixels are squared
 
-    #* Show the results on screen
+    """#* Show the results on screen
     print(f"\nNumber of channels: {num_channels}")
     print(f"Units of flux: {hdr['BUNIT']}")
     print(f"Coordinates of first pixel: (AR, Dec) = ({int(X_AR_ini/15)} h {int((X_AR_ini/15-int(X_AR_ini/15))*60)} min {((X_AR_ini/15-int(X_AR_ini/15))*60-int((X_AR_ini/15-int(X_AR_ini/15))*60))*60:.2f} sec, {int(Y_DEC_ini)}º {int((Y_DEC_ini-int(Y_DEC_ini))*60)}' {((Y_DEC_ini-int(Y_DEC_ini))*60-int((Y_DEC_ini-int(Y_DEC_ini))*60))*60:.2f}'')")
@@ -90,7 +90,7 @@ def copy_header(name_orig_cube):
     print(f"Final frequency: {freq_final/1e6} MHz")
     print(f"Ratio pixel/right ascension: 1 px = {pixel_X_to_AR:.2e}º")
     print(f"Ratio pixel/declination: 1 px = {pixel_Y_to_Dec:.2e}º")
-    print(f"Ratio channel/frequency: 1 channel = {channel_to_freq/1e3:.2f} kHz")
+    print(f"Ratio channel/frequency: 1 channel = {channel_to_freq/1e3:.2f} kHz")"""
 
     #* We close the header
     hdul.close()
