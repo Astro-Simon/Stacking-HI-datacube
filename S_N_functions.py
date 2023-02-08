@@ -35,8 +35,8 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
 
     • Input    
     - datacube [array - float]: Array of fluxes of the datacube
-    - num_pixels_cubelets [int]: Number of pixels of each cubelet in axes X and Y
-    - num_channels_cubelets [int]: Number of channels of each cubelets
+    - num_pixels_cubelets [int]: Semirange of pixels of each cubelet in axes X and Y
+    - num_channels_cubelets [int]: Semirange of channels of each cubelets
     - wcs [WCS]: WCS of the file
     - center_x [float]: Horizontal position of the center of the circular region
     - center_y [float]: Vertical position of the center of the circular region
@@ -51,19 +51,22 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
     - S_N_best [float]: Greater S/N ratio of the datacube calculated with (L, C) = (L_best, C_best)
     """
     
-    C_min, C_max = 1, int(num_channels_cubelets/2)-1
-    signal_to_noise_ratios = np.zeros((num_pixels_cubelets, C_max-1))
+    C_min, C_max = 1, num_channels_cubelets
+    signal_to_noise_ratios = np.zeros((num_pixels_cubelets, num_channels_cubelets))
     index_array_L = 0
     S_N_best = -1
     for L in range(1, num_pixels_cubelets+1):
         index_array_C = 0
         
-        integrated_spectrum = extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels_cubelets, center_x, center_y, L)
+        integrated_spectrum = extract_spectrum_from_spatial_circular_region(datacube, wcs, 2*num_channels_cubelets+1, center_x, center_y, L)
 
         for C in range(C_min, C_max):
             new_continuum, new_spectrum, new_central_region, mask = fit_continuum_of_spectrum(integrated_spectrum, num_channels_cubelets, emission_channel, C, degree_fit_continuum)
 
             std_dev = np.nanstd(new_continuum)
+            if(std_dev == 0):
+                std_dev = 1 ###! Can I do this?
+
             S_N = np.nansum(new_central_region)/(std_dev*np.sqrt(2*C+1))
 
             if(S_N > S_N_best):
@@ -73,12 +76,12 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
             
             #print(Signal_to_noise_ratio)
 
-            if (C==118 and L==4):
-                full_channels = np.linspace(0, num_channels_cubelets, num_channels_cubelets)
+            if (C==13 and L==3):
+                full_channels = np.linspace(1, 2*num_channels_cubelets+1, 2*num_channels_cubelets+1)
                 spectrum_central_region = integrated_spectrum[emission_channel-C:emission_channel+C+1]
                 continuum = np.concatenate((integrated_spectrum[:emission_channel-C-1], np.repeat(np.nan, int(2*C+1)), integrated_spectrum[emission_channel+C:]))
     
-                fig, ax = plt.subplots(figsize=(12.8,7.20))
+                fig, ax = plt.subplots(figsize=(12.8, 7.20))
                 plt.bar(full_channels, integrated_spectrum, color='#264653', label="Original spectrum", bottom=np.nanmax(new_spectrum)*1.5)
                 plt.bar(full_channels[mask], continuum[mask], color='#D62828', label="Fitted continuum", alpha=1, bottom=np.nanmax(new_spectrum)*1.5)
                 plt.bar(full_channels, new_spectrum, color="#EBC033", label="Corrected continuum")
@@ -103,15 +106,15 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
                 ax.set_xlabel("Channels")
                 ax.set_ylabel(r"Flux density (%s)" %flux_units, labelpad=12.0)
 
-                freq_axis = np.linspace(rest_freq-channel_to_freq*num_channels_cubelets/2, rest_freq+channel_to_freq*num_channels_cubelets/2, num_channels_cubelets)*10**(-6)
-                chann_axis = np.linspace(1, num_channels_cubelets, num_channels_cubelets)
+                freq_axis = np.linspace(rest_freq-channel_to_freq*num_channels_cubelets/2, rest_freq+channel_to_freq*num_channels_cubelets, 2*num_channels_cubelets+1)*10**(-6)
+                chann_axis = np.linspace(1, 2*num_channels_cubelets+1, 2*num_channels_cubelets+1)
 
                 ax.grid(True, alpha=0.5, which="minor", ls=":")
                 ax.grid(True, alpha=0.7, which="major")
                 
                 plt.bar(np.linspace(1, emission_channel-C-1, emission_channel-C-1), new_spectrum[:emission_channel-C-1])
                 plt.bar(np.linspace(emission_channel-C, emission_channel+C, 2*C+1), new_central_region)
-                plt.bar(np.linspace(emission_channel+C+1, num_channels_cubelets, num_channels_cubelets - emission_channel - C), new_spectrum[emission_channel+C:])
+                plt.bar(np.linspace(emission_channel+C+1, 2*num_channels_cubelets+1, 2*num_channels_cubelets+1 - emission_channel - C), new_spectrum[emission_channel+C:])
                 
                 ax.vlines(emission_channel, min(spectrum_central_region), max(spectrum_central_region), linestyles='dashdot', color='red', label='HI position', alpha=1, zorder=0)
                 
@@ -132,12 +135,12 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
             
     fig, ax = plt.subplots(figsize=(9, 7.20))
     
-    centers = [2, int(num_channels_cubelets/2), 1, num_pixels_cubelets]
-    dx, = np.diff(centers[:2])/(signal_to_noise_ratios.shape[1]-1)
-    dy, = -np.diff(centers[2:])/(signal_to_noise_ratios.shape[0]-1)
-    extent = [centers[0]-dx/2, centers[1]+dx/2, centers[2]+dy/2, centers[3]-dy/2]
+    centers = [1, num_channels_cubelets-1, 1, num_pixels_cubelets]
+    dx, = np.diff(centers[:2])/(signal_to_noise_ratios.shape[1]-0.5)
+    dy, = -np.diff(centers[2:])/(signal_to_noise_ratios.shape[0]-0.5)
+    extent = [0.5, num_channels_cubelets+0.5, 0.5, num_pixels_cubelets+0.5]
 
-    signals = ax.imshow(signal_to_noise_ratios, cmap="plasma", origin='lower', extent=extent, interpolation='nearest', aspect='auto', vmin=0)#, norm=LogNorm())
+    signals = ax.imshow(signal_to_noise_ratios, cmap="plasma", extent=extent, origin='lower', interpolation='nearest', aspect='auto', vmin=0)#, norm=LogNorm())
 
     plt.colorbar(signals)
 
