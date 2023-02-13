@@ -19,7 +19,6 @@ import os
 from astropy.cosmology import FlatLambdaCDM
 from astropy.io import fits
 import astropy.units as u
-from astropy.constants import c
 from astropy.coordinates import Angle
 import matplotlib.pyplot as plt
 import numpy as np
@@ -159,7 +158,6 @@ def main():
 
     freq_to_vel = u.doppler_optical(rest_freq*u.Hz) #!!! Convention used by the user (possible option)
     semi_freq_around_galaxies = abs((semi_vel_around_galaxies).to(u.MHz, equivalencies=freq_to_vel) - rest_freq*u.Hz)
-    print(semi_freq_around_galaxies)
 
     #!Extract from the catalog the 3D positions of the galaxies
     coords_RA, coords_DEC, redshifts, num_galaxies = get_galaxies_positions(name_catalog, z_min, z_max)
@@ -190,7 +188,7 @@ def main():
 
     #* After the stacking we will have a single number of spaxels and channels of the stacked datacube
     num_pixels_cubelets_final = int(num_pixels_cubelets[maxi])
-    central_spaxel = int(num_pixels_cubelets_final+1) #* Position of the stacked emission after the stacking
+    central_spaxel = int(num_pixels_cubelets_final) #* Position of the stacked emission after the stacking
 
     num_channels_cubelets_final = int(num_channels_cubelets[maxi])
     expected_emission_channel_final = int(num_channels_cubelets_final+1) #* Position of the stacked emission after the stacking
@@ -213,6 +211,8 @@ def main():
     L_best, C_best, S_N_data = S_N_measurement_test(stacked_data_cube, num_pixels_cubelets_final, num_channels_cubelets_final, wcs, central_spaxel, central_spaxel, expected_emission_channel_final, rest_freq, channel_to_freq, flux_units, degree_fit_continuum)
     print(f"Best combination of (L, C) in order to calculate S/N: L={L_best}, C={C_best}. Best S/N: {S_N_data:.2f}.\n")
 
+    exit()
+
     print("\nPSF STACKING\n")
 
     #! Get stacked PSF datacube
@@ -223,7 +223,7 @@ def main():
 
     print("PSF stacked cube obtained!\n")
 
-    """print("\nNOISE STACKING\n")
+    print("\nNOISE STACKING\n")
 
     #! Get stacked noises datacube and calculate their S/N ratio
     # ? Redshifts switched
@@ -243,7 +243,7 @@ def main():
         print("Healy-noise stacked cube obtained!")
 
         S_N_noise_Healy = S_N_calculation(stacked_noise_cube_Healy, wcs, num_channels_cubelets_final, central_spaxel, central_spaxel, expected_emission_channel_final, L_best, C_best, degree_fit_continuum)
-        print(f"S/N of noise cube from switched redshifts: {S_N_noise_Healy:.3f}!\n")"""
+        print(f"S/N of noise cube from switched redshifts: {S_N_noise_Healy:.3f}!\n")
 
     names = ["data_stack.fits", "PSF_stack.fits", "noise_stack_Healy.fits"]
     names_original = [name_orig_data_cube, name_orig_PSF_cube, name_orig_data_cube]

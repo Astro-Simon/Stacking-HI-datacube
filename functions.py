@@ -86,12 +86,12 @@ def extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels, c
     
     mask = aperture.to_mask(method='exact')
     
-    """plt.imshow(mask)
+    plt.imshow(mask)
     plt.show()
 
     plt.imshow(datacube[int(num_channels/2)], cmap='gray_r', origin='lower')
     aperture.plot(color='blue', lw=1.5, alpha=0.5)
-    plt.show()"""
+    plt.show()
 
     integrated_spectrum = np.zeros(num_channels)
     for i in range(num_channels):
@@ -117,9 +117,15 @@ def fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, semirang
     - mask [array - bool]: 'True' where the spectrum is finite
     """
 
+    if(num_channels % 2 == 0):
+        full_length = 2*num_channels
+    else:
+        full_length = 2*num_channels+1
+
+
     spectrum_central_region = spectrum[emission_channel-semirange:emission_channel+semirange+1]
     continuum = np.concatenate((spectrum[:emission_channel-semirange], np.repeat(np.nan, int(2*semirange+1)), spectrum[emission_channel+semirange+1:]))
-    full_channels = np.linspace(0, 2*num_channels+1, 2*num_channels+1)
+    full_channels = np.linspace(0, full_length, full_length)
             
     #?print(len(spectrum[:emission_channel-C-1]), len(spectrum[emission_channel+C:]), num_channels)
     #?print(spectrum[:emission_channel-C])
@@ -129,14 +135,14 @@ def fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, semirang
     with warnings.catch_warnings(): #?Ignaramos los warnings
         warnings.simplefilter('ignore')
         linfitter = fitting.LinearLSQFitter()
-        poly_cont_1 = linfitter(models.Polynomial1D(1), np.linspace(1, 2*num_channels+1, 2*num_channels+1)[np.isfinite(continuum)], continuum[np.isfinite(continuum)])
+        poly_cont_1 = linfitter(models.Polynomial1D(degree), np.linspace(1, full_length, full_length)[np.isfinite(continuum)], continuum[np.isfinite(continuum)])
 
     with warnings.catch_warnings(): #?Ignaramos los warnings
         warnings.simplefilter('ignore')
         fitter = fitting.LevMarLSQFitter()
         mask = np.isfinite(continuum)
-        fitted_model = fitter(poly_cont_1, np.linspace(1, 2*num_channels+1, 2*num_channels+1)[mask], continuum[mask])
-        fitted_lines = fitted_model(np.linspace(1, 2*num_channels+1, 2*num_channels+1))
+        fitted_model = fitter(poly_cont_1, np.linspace(1, full_length, full_length)[mask], continuum[mask])
+        fitted_lines = fitted_model(np.linspace(1, full_length, full_length))
 
     fitted_continuum = continuum - fitted_lines
 
@@ -200,3 +206,63 @@ def plot_spaxel_spectrum(datacube, num_galaxies, rest_freq, channel_to_freq, num
 
     plt.savefig('%s.pdf' %name)
 
+"""def gaussian(x, mu, sig, m):
+    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.))) + m*x
+
+x = np.linspace(-3, 3, 120)
+semi_size = int(len(x)/2)
+y = gaussian(x, 0, 2, 0)
+
+C = 20
+center_channel = semi_size+1
+
+new_continuum, new_spectrum, new_central_region, mask = fit_continuum_of_spectrum(y, semi_size, int(semi_size+1), C, 1)
+emission_channel = center_channel
+full_channels = np.linspace(1, 2*semi_size, 2*semi_size)
+spectrum_central_region = y[emission_channel-C:emission_channel+C+1]
+continuum = np.concatenate((y[:emission_channel-C-1], np.repeat(np.nan, int(2*C+1)), y[emission_channel+C:]))
+
+fig, ax = plt.subplots(figsize=(12.8, 7.20))
+print(len(full_channels), len(y))
+plt.bar(full_channels, y, color='#264653', label="Original spectrum", bottom=np.nanmax(new_spectrum)*1.5)
+plt.bar(full_channels[mask], continuum[mask], color='#D62828', label="Fitted continuum", alpha=1, bottom=np.nanmax(new_spectrum)*1.5)
+plt.bar(full_channels, new_spectrum, color="#EBC033", label="Corrected continuum")
+
+#?Figure's labels
+ax.set_xlabel("Wavelength ($\mathrm{\AA}$)", fontsize=16)
+ax.set_ylabel("Flux density (arbitrary units)", fontsize=16)
+ax.tick_params(axis='both', labelsize=16)
+ax.set_xlim(full_channels[0], full_channels[-1])
+
+#?Save the figure
+ax.legend(loc='best', fontsize=16)
+fig.tight_layout()
+plt.savefig("Verification_process/SN_best/SN_continuum_fit.pdf")
+
+
+
+fig, ax = plt.subplots(figsize=(19.2, 10.8))
+
+ax.set_xlabel("Channels")
+ax.set_ylabel(r"Flux density", labelpad=12.0)
+
+freq_axis = np.linspace(1420-125000*semi_size/2, 1420+125000*semi_size, 2*semi_size+1)*10**(-6)
+chann_axis = np.linspace(1, 2*semi_size+1, 2*semi_size+1)
+
+ax.grid(True, alpha=0.5, which="minor", ls=":")
+ax.grid(True, alpha=0.7, which="major")
+
+plt.bar(np.linspace(1, emission_channel-C-1, emission_channel-C-1), new_spectrum[:emission_channel-C-1])
+plt.bar(np.linspace(emission_channel-C, emission_channel+C, 2*C+1), new_central_region)
+print(len(np.linspace(emission_channel+C+1, 2*semi_size+1, 2*semi_size+1 - emission_channel - C)), len(new_spectrum[emission_channel+C:]))
+#plt.bar(np.linspace(emission_channel+C+1, 2*semi_size+1, 2*semi_size+1 - emission_channel - C), new_spectrum[emission_channel+C:])
+
+ax.vlines(emission_channel, min(spectrum_central_region), max(spectrum_central_region), linestyles='dashdot', color='red', label='HI position', alpha=1, zorder=0)
+
+#plt.plot(full_channels, gauss_function(full_channels, amplitud, media, sigma))
+
+ax.legend(loc='best')
+
+plt.tight_layout()
+
+plt.savefig(f'Verification_process/SN_best/regions_SN_spectrum_test_{C}.pdf')"""
