@@ -75,7 +75,7 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
             print(f"\nWe could not extract the cubelet centered on (x, y) = ({list_pixels_X[i]}, {list_pixels_Y[i]}).\n")  
     return cubelets    
 
-def shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, num_channels_original, num_pixels_cubelets, cubelets):
+def shift_and_wrap(redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, num_channels_original, num_pixels_cubelets, cubelets):
     """
     Function that shifts the spectral axis of cubelets around the frequency of interest (HI - 1420 MHz) and then wrap the part of the spectrum that is out of boundaries.
 
@@ -120,7 +120,7 @@ def shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq
 
     return shifted_wrapped_cubelets
 
-def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, central_width, pre_stacking_cubelets, weights_option, lum_distance):
+def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, central_width, pre_stacking_cubelets, weights_option, luminosity_distances):
     """ 
     Function that stack the cubelets.
 
@@ -132,8 +132,8 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
     - central_width [int]: Number of channels where we consider the central (HI) lies; used for calculating sigma
     - pre_stacking_cubelets [array - float]: Array of cubelets shifted and wrapped of each galaxy
     - weights_option [str]: Option used to calculate the weights
-    - lum_distance [float]: luminosity distance of the galaxies, used to calculate Delhaize's weights 
-    !!! Make the lum_distance optional
+    - luminosity_distances [float]: luminosity distance of the galaxies, used to calculate Delhaize's weights 
+    !!! Make the luminosity_distances optional
 
     • Output
     - stacked_cube [array - float]: Stacked datacube 
@@ -155,7 +155,7 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
                     elif(weights_option=='lah'):
                         weight = 1/sigma
                     elif(weights_option=='delhaize'):
-                        weight = 1/(sigma*lum_distance**2)**2
+                        weight = 1/(sigma*luminosity_distances[i]**2)**2
                     elif(weights_option=='None'):
                         weight = 1
                     else:
@@ -178,7 +178,7 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
     
     return stacked_cube
 
-def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, num_pixels_cubelets_final, num_channels_cubelets_final, weights_option, lum_distance, show_verifications):
+def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, weights_option, luminosity_distances, show_verifications):
     """
     Metafunction that extract the cubelets, shift and wrap them and stack them.
 
@@ -203,8 +203,8 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     - central_width [int]: Number of channels where we consider the central (HI) lies; used for calculating sigma
     - num_pixels_cubelets_final [int]: Final semirange of spaxels extracted around each galaxy used in the regrid process
     - weights_option [str]: Option used to calculate the weights
-    - lum_distance [float]: luminosity distance of the galaxies, used to calculate Delhaize's weights 
-    !!! Make the lum_distance optional
+    - luminosity_distances [float]: luminosity distance of the galaxies, used to calculate Delhaize's weights 
+    !!! Make the luminosity_distances optional
     - show_verifications [bool]: If 'True', plot the spectrum of one of the shifted and wrapped subelets
 
     • Output
@@ -232,7 +232,7 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     #* Now we shift each spectrum in each subcube to place it in rest frame with its HI emission at central channel
     #!!! Possible problem: if some cubelets have same spaxels (don't know if it's an issue)
 
-    #shifted_wrapped_cubelets = shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, datacube.shape[0], num_pixels_cubelets, cubelets)
+    #shifted_wrapped_cubelets = shift_and_wrap(redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, datacube.shape[0], num_pixels_cubelets, cubelets)
 
     """import matplotlib.pyplot as plt
     for i in range(spatially_spectrally_scaled_cubelets.shape[1]):
@@ -247,6 +247,6 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     num_channels_final = int((spatially_spectrally_scaled_cubelets.shape[1]-1)/2)
     num_pixels_final = int((spatially_spectrally_scaled_cubelets.shape[2]-1)/2)
 
-    stacked_cube = stacking_process(type_of_datacube, num_galaxies, num_channels_final, num_pixels_final, central_width, spatially_spectrally_scaled_cubelets, weights_option, lum_distance)
+    stacked_cube = stacking_process(type_of_datacube, num_galaxies, num_channels_final, num_pixels_final, central_width, spatially_spectrally_scaled_cubelets, weights_option, luminosity_distances)
 
     return stacked_cube

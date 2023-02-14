@@ -76,7 +76,7 @@ name_catalog = 'G10COSMOSCatv05.csv_z051_sq_chiles_specz'
 #!!! Use kpc instead of number of pixels and angstroms/Hz instead of number of channels
 cosmo = FlatLambdaCDM(H0=70*u.km / u.s / u.Mpc, Tcmb0=2.725 * u.K, Om0=0.3)
 weights_option = 'fabello'
-lum_distance = 0.
+luminosity_distances = 0.
 degree_fit_continuum = 1  #* Degree of fit of continuum around emission lines
 show_verifications = False
 test = True
@@ -169,8 +169,10 @@ def main():
     num_channels_cubelets = np.zeros(num_galaxies)
     zmin = np.nanmin(redshifts)
     zmax = np.nanmax(redshifts)
+    luminosity_distances = []
     for index, z in enumerate(redshifts):
         d_A = cosmo.angular_diameter_distance(z)
+        luminosity_distances.append((1+z)**2 * d_A)
         theta = Angle(np.arctan(semi_distance_around_galaxies/d_A), u.radian)
         num_pixels_cubelets[index] = np.ceil(theta.degree/pixel_scale)
 
@@ -213,11 +215,9 @@ def main():
 
     #! Get stacked data datacube
     #tic = time.perf_counter()
-    stacked_data_cube = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, num_pixels_cubelets_final, num_channels_cubelets_final, weights_option, lum_distance, show_verifications)
+    stacked_data_cube = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, weights_option, luminosity_distances, show_verifications)
     #toc = time.perf_counter()
     print(f"Data stacked cube obtained!")
-
-    exit()
 
     #! Calculate best (L, C) combination for S/N measurement
     L_best, C_best, S_N_data = S_N_measurement_test(stacked_data_cube, num_pixels_cubelets_final, num_channels_cubelets_final, wcs, central_spaxel, central_spaxel, central_channel, rest_freq, channel_to_freq, flux_units, degree_fit_continuum)
@@ -228,7 +228,7 @@ def main():
     #! Get stacked PSF datacube
     PSF = fits.getdata(name_orig_PSF_cube, ext=0)
     PSF = PSF[0]
-    stacked_PSF_cube = datacube_stack('PSF', num_galaxies, num_channels_cubelets, 2*num_pixels_cubelets, None, None, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, PSF, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, num_pixels_cubelets_final, num_channels_cubelets_final, weights_option, lum_distance, show_verifications)
+    stacked_PSF_cube = datacube_stack('PSF', num_galaxies, num_channels_cubelets, 2*num_pixels_cubelets, None, None, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, PSF, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, weights_option, luminosity_distances, show_verifications)
     #!!! Should we use weights for the PSF in the stacking process??
 
     print("PSF stacked cube obtained!\n")
@@ -240,7 +240,7 @@ def main():
     if(test):
         sn_values = []
         for i in range(100):
-            stacked_noise_cube_Healy = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, num_pixels_cubelets_final, num_channels_cubelets_final, weights_option, lum_distance, show_verifications)  # !!! Should I re-use the results from the data datacube?
+            stacked_noise_cube_Healy = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, weights_option, luminosity_distances, show_verifications)  # !!! Should I re-use the results from the data datacube?
             print("Healy-noise stacked cube obtained!")
 
             S_N_noise_Healy = S_N_calculation(stacked_noise_cube_Healy, wcs, num_channels_cubelets_final, central_spaxel, central_spaxel, central_channel, L_best, C_best, degree_fit_continuum)
@@ -249,7 +249,7 @@ def main():
 
         print(f"\nResults of the test: <S/N>_{{noise}} = {np.nanmean(sn_values):.4f} +/- {3*np.std(sn_values):.4f}.\n")
     else:
-        stacked_noise_cube_Healy = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, num_pixels_cubelets_final, num_channels_cubelets_final, weights_option, lum_distance, show_verifications)  # !!! Should I re-use the results from the data datacube?
+        stacked_noise_cube_Healy = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, weights_option, luminosity_distances, show_verifications)  # !!! Should I re-use the results from the data datacube?
         print("Healy-noise stacked cube obtained!")
 
         S_N_noise_Healy = S_N_calculation(stacked_noise_cube_Healy, wcs, num_channels_cubelets_final, central_spaxel, central_spaxel, central_channel, L_best, C_best, degree_fit_continuum)
