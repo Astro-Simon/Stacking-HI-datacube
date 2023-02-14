@@ -1,13 +1,13 @@
 import os
 import warnings
-from astropy.modeling import models, fitting
+from astropy.modeling.polynomial import Chebyshev1D
+import astropy.units as u
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 from photutils.aperture import CircularAperture, aperture_photometry
-
-def gauss_function(x, a, x0, sigma):
-    return a*np.exp(-(x-x0)**2/(2*sigma**2))
+from specutils.spectra import Spectrum1D, SpectralRegion
+from specutils.fitting import fit_generic_continuum
 
 def galaxia_puntos(data, wcs, list_pixels_X, list_pixels_Y, pixel_x_min, pixel_x_max, pixel_y_min, pixel_y_max, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, flux_units, vmin, vmax):
     """
@@ -86,12 +86,12 @@ def extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels, c
     
     mask = aperture.to_mask(method='exact')
     
-    plt.imshow(mask)
+    """plt.imshow(mask)
     plt.show()
 
     plt.imshow(datacube[int(num_channels/2)], cmap='gray_r', origin='lower')
     aperture.plot(color='blue', lw=1.5, alpha=0.5)
-    plt.show()
+    plt.show()"""
 
     integrated_spectrum = np.zeros(num_channels)
     for i in range(num_channels):
@@ -100,7 +100,7 @@ def extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels, c
 
     return integrated_spectrum
 
-def fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, semirange, degree):
+def fit_continuum_of_spectrum(spectrum, x_axis, emission_channel, semirange, degree):
     """
     Function that fits the continuum of a spectrum where lies an emission line.
 
@@ -117,21 +117,46 @@ def fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, semirang
     - mask [array - bool]: 'True' where the spectrum is finite
     """
 
-    if(num_channels % 2 == 0):
-        full_length = 2*num_channels
-    else:
-        full_length = 2*num_channels+1
+    spectrum_object = Spectrum1D(flux=spectrum*u.Jy, spectral_axis=x_axis*u.um)
+    central_emission = SpectralRegion((emission_channel-semirange)*u.um, (emission_channel+semirange+1)*u.um)
 
+    with warnings.catch_warnings():  # Ignore warnings
+        warnings.simplefilter('ignore')
+        fitted_model = fit_generic_continuum(spectrum_object, model=Chebyshev1D(degree))
+
+    fitted_continuum = fitted_model(x_axis*u.um).value
+
+    fitted_spectrum = spectrum - fitted_continuum
+
+    spectrum_central_region = spectrum[emission_channel-semirange:emission_channel+semirange+1]
+
+    fitted_central_region = spectrum_central_region - fitted_model(np.linspace(emission_channel-semirange, emission_channel+semirange, 2*semirange+1)*u.um).value
+
+    """f, ax = plt.subplots()  
+    ax.plot(x_axis, spectrum)
+    ax.plot(x_axis, fitted_lines)  
+    ax.set_title("Continuum Fitting") 
+    ax.grid(True)
+    plt.show()"""
+
+
+
+    """full_length = len(spectrum)
 
     spectrum_central_region = spectrum[emission_channel-semirange:emission_channel+semirange+1]
     continuum = np.concatenate((spectrum[:emission_channel-semirange], np.repeat(np.nan, int(2*semirange+1)), spectrum[emission_channel+semirange+1:]))
-    full_channels = np.linspace(0, full_length, full_length)
             
     #?print(len(spectrum[:emission_channel-C-1]), len(spectrum[emission_channel+C:]), num_channels)
-    #?print(spectrum[:emission_channel-C])
+    #?print(spectrum[:emission_channel-C])"""
+
+    """plt.bar(np.linspace(1, len(spectrum), len(spectrum)), spectrum)
+    plt.bar(np.linspace(emission_channel-semirange, emission_channel+semirange+1, len(spectrum_central_region)), spectrum_central_region)
+    plt.bar(np.linspace(1, len(spectrum), len(spectrum)), continuum)
+
+    plt.show()"""
 
     #* Let's calculate the standard deviation of the continuum outside the central region. First we fit the continuum
-    #?First degree fit
+    """#?First degree fit
     with warnings.catch_warnings(): #?Ignaramos los warnings
         warnings.simplefilter('ignore')
         linfitter = fitting.LinearLSQFitter()
@@ -148,9 +173,9 @@ def fit_continuum_of_spectrum(spectrum, num_channels, emission_channel, semirang
 
     #* Now we calculate the S/N in the central region, using the sum of the emission and the std_dev of the continuum
     fitted_spectrum = spectrum - fitted_model(full_channels)
-    fitted_central_region = spectrum_central_region - fitted_model(np.linspace(emission_channel-semirange, emission_channel+semirange, 2*semirange+1))
+    fitted_central_region = spectrum_central_region - fitted_model(np.linspace(emission_channel-semirange, emission_channel+semirange, 2*semirange+1))"""
 
-    return fitted_continuum, fitted_spectrum, fitted_central_region, mask
+    return fitted_spectrum, fitted_central_region, fitted_continuum
 
 def plot_spaxel_spectrum(datacube, num_galaxies, rest_freq, channel_to_freq, num_channels_cubelets, flux_units, spaxel_x, spaxel_y, factor, name): #!!! Can I use 'kwargs' for variables like 'num_galaxies', 'factor', 'name'? If yes, how?
     """
@@ -205,64 +230,3 @@ def plot_spaxel_spectrum(datacube, num_galaxies, rest_freq, channel_to_freq, num
     plt.tight_layout()
 
     plt.savefig('%s.pdf' %name)
-
-"""def gaussian(x, mu, sig, m):
-    return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sig, 2.))) + m*x
-
-x = np.linspace(-3, 3, 120)
-semi_size = int(len(x)/2)
-y = gaussian(x, 0, 2, 0)
-
-C = 20
-center_channel = semi_size+1
-
-new_continuum, new_spectrum, new_central_region, mask = fit_continuum_of_spectrum(y, semi_size, int(semi_size+1), C, 1)
-emission_channel = center_channel
-full_channels = np.linspace(1, 2*semi_size, 2*semi_size)
-spectrum_central_region = y[emission_channel-C:emission_channel+C+1]
-continuum = np.concatenate((y[:emission_channel-C-1], np.repeat(np.nan, int(2*C+1)), y[emission_channel+C:]))
-
-fig, ax = plt.subplots(figsize=(12.8, 7.20))
-print(len(full_channels), len(y))
-plt.bar(full_channels, y, color='#264653', label="Original spectrum", bottom=np.nanmax(new_spectrum)*1.5)
-plt.bar(full_channels[mask], continuum[mask], color='#D62828', label="Fitted continuum", alpha=1, bottom=np.nanmax(new_spectrum)*1.5)
-plt.bar(full_channels, new_spectrum, color="#EBC033", label="Corrected continuum")
-
-#?Figure's labels
-ax.set_xlabel("Wavelength ($\mathrm{\AA}$)", fontsize=16)
-ax.set_ylabel("Flux density (arbitrary units)", fontsize=16)
-ax.tick_params(axis='both', labelsize=16)
-ax.set_xlim(full_channels[0], full_channels[-1])
-
-#?Save the figure
-ax.legend(loc='best', fontsize=16)
-fig.tight_layout()
-plt.savefig("Verification_process/SN_best/SN_continuum_fit.pdf")
-
-
-
-fig, ax = plt.subplots(figsize=(19.2, 10.8))
-
-ax.set_xlabel("Channels")
-ax.set_ylabel(r"Flux density", labelpad=12.0)
-
-freq_axis = np.linspace(1420-125000*semi_size/2, 1420+125000*semi_size, 2*semi_size+1)*10**(-6)
-chann_axis = np.linspace(1, 2*semi_size+1, 2*semi_size+1)
-
-ax.grid(True, alpha=0.5, which="minor", ls=":")
-ax.grid(True, alpha=0.7, which="major")
-
-plt.bar(np.linspace(1, emission_channel-C-1, emission_channel-C-1), new_spectrum[:emission_channel-C-1])
-plt.bar(np.linspace(emission_channel-C, emission_channel+C, 2*C+1), new_central_region)
-print(len(np.linspace(emission_channel+C+1, 2*semi_size+1, 2*semi_size+1 - emission_channel - C)), len(new_spectrum[emission_channel+C:]))
-#plt.bar(np.linspace(emission_channel+C+1, 2*semi_size+1, 2*semi_size+1 - emission_channel - C), new_spectrum[emission_channel+C:])
-
-ax.vlines(emission_channel, min(spectrum_central_region), max(spectrum_central_region), linestyles='dashdot', color='red', label='HI position', alpha=1, zorder=0)
-
-#plt.plot(full_channels, gauss_function(full_channels, amplitud, media, sigma))
-
-ax.legend(loc='best')
-
-plt.tight_layout()
-
-plt.savefig(f'Verification_process/SN_best/regions_SN_spectrum_test_{C}.pdf')"""

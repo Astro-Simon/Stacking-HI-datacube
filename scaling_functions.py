@@ -30,7 +30,7 @@ def scale_1D_spectrum(output_coords, scale, shift):
     return (output_coords[0], shifted_rescaled_dim_z)
 
 #!!! One scaling for each cubelets or one scaling for each channel??
-def spatial_scaling(num_galaxies, num_pixels_cubelets, cubelets):
+def spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wanted, cubelets):
     """
     Function that calculate the spatial scaling necessary for each cubelet and scale them.
 
@@ -49,10 +49,10 @@ def spatial_scaling(num_galaxies, num_pixels_cubelets, cubelets):
     scaled_cubelets = []
     with alive_bar(num_galaxies, bar='circles', title='Spatial scaling of cubelets in progress') as bar:                    
         for i, cubelet in enumerate(cubelets):
-            scale = (2*np.nanmin(num_pixels_cubelets)+1)/(2*num_pixels_cubelets[i]+1)
-            scaled_cubelet = ndimage.geometric_transform(cubelet, scale_2D_image, cval=0, extra_keywords={'scale':scale, 'shift_x':0, 'shift_y':0})
+            scale = (2*num_pixels_cubelets_wanted+1)/(2*num_pixels_cubelets[i]+1)
+            scaled_cubelet = ndimage.geometric_transform(cubelet, scale_2D_image, cval=0, extra_keywords={'scale':scale, 'shift_x':0, 'shift_y':0}) #Rescale
 
-            scaled_crop_cubelet = scaled_cubelet[:, :2*np.nanmin(num_pixels_cubelets)+1, :2*np.nanmin(num_pixels_cubelets)+1]
+            scaled_crop_cubelet = scaled_cubelet[:, :2*num_pixels_cubelets_wanted+1, :2*num_pixels_cubelets_wanted+1] #Crop
 
             scaled_cubelets.append(scaled_crop_cubelet)
 
@@ -71,7 +71,7 @@ def spatial_scaling(num_galaxies, num_pixels_cubelets, cubelets):
 
     return scaled_cubelets
 
-def spectral_scaling(num_galaxies, num_channels_cubelets, cubelets):
+def spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_wanted, cubelets):
     """
     Function that scales the spectral dimension of each cubelet.
 
@@ -88,22 +88,22 @@ def spectral_scaling(num_galaxies, num_channels_cubelets, cubelets):
     - scaled_cubelets [array - float]: Array of cubelets of each galaxy scaled spatially
     """
 
-    scaled_cubelets = np.zeros((num_galaxies, 2*np.nanmin(num_channels_cubelets)+1, cubelets[0].shape[1], cubelets[0].shape[2]))    
+    scaled_cubelets = np.zeros((num_galaxies, 2*num_channels_cubelets_wanted+1, cubelets[0].shape[1], cubelets[0].shape[2]))    
     with alive_bar(num_galaxies*cubelets[0].shape[2]*cubelets[0].shape[1], bar='circles', title='Spectral scaling of cubelets in progress') as bar:
         for i, cubelet in enumerate(cubelets):
-            scale = (2*np.nanmin(num_channels_cubelets)+1)/(2*num_channels_cubelets[i]+1)
+            scale = (2*num_channels_cubelets_wanted+1)/(2*num_channels_cubelets[i]+1)
             for x in range(cubelet.shape[2]):
                 for y in range(cubelet.shape[1]):
                     #spaxel = 100*stats.norm.pdf(np.linspace(1, 100, 100), 50, np.sqrt(300))
                     spaxel = cubelet[:, y, x]
 
-                    spaxel_matrix = np.stack((np.zeros(len(spaxel)), spaxel))
+                    spaxel_matrix = np.stack((np.zeros(len(spaxel)), spaxel)) #We create a matrix in order to use 'ndimage.geometric_transform'
 
-                    scaled_spaxel_matrix = ndimage.geometric_transform(spaxel_matrix, scale_1D_spectrum, cval=0, extra_keywords={'scale':scale, 'shift':0})
+                    scaled_spaxel_matrix = ndimage.geometric_transform(spaxel_matrix, scale_1D_spectrum, cval=0, extra_keywords={'scale':scale, 'shift':0}) #Rescale
 
-                    scaled_spaxel = scaled_spaxel_matrix[1]
+                    scaled_spaxel = scaled_spaxel_matrix[1] #We extract the spectrum only
                     
-                    scaled_crop_spaxel = scaled_spaxel[:2*np.nanmin(num_channels_cubelets)+1]
+                    scaled_crop_spaxel = scaled_spaxel[:2*num_channels_cubelets_wanted+1] #Crop
 
                     """if(i==2 and x==10, y==10):
                         print(f"Integrated flux ratio: {np.nansum(scaled_crop_spaxel)/(scale*np.nansum(spaxel))}.")

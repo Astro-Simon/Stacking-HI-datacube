@@ -3,8 +3,6 @@ from scaling_functions import spatial_scaling, spectral_scaling
 import numpy as np
 import random
 from alive_progress import alive_bar
-import numina.array
-import math
 
 def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, is_PSF, show_verifications):
     """
@@ -58,6 +56,9 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
         y_max = int(list_pixels_Y[index] + num_pixels + 1)
         x_min = int(list_pixels_X[index] - num_pixels)
         x_max = int(list_pixels_X[index] + num_pixels + 1)
+        if(num_channels == 0):
+            print("\nWon't extract the cubelets (num_channels is null). Check 'semi_vel_around_galaxies'.\n")
+            exit()
         try:
             if(z_min >= 0):
                 if(z_max < max_range):
@@ -70,13 +71,7 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
         except:
             print("\nEmpty cubelet :(")
             #cubelets.append(np.zeros(cubelets[i].shape))
-            print(f"\nWe could not extract the cubelet centered on (x, y) = ({list_pixels_X[i]}, {list_pixels_Y[i]}).\n")
-
-        if(cubelets[index].shape[0] == 0):
-            print("\nMala onda\n")
-            exit()
-        
-          
+            print(f"\nWe could not extract the cubelet centered on (x, y) = ({list_pixels_X[i]}, {list_pixels_Y[i]}).\n")  
     return cubelets    
 
 def shift_and_wrap(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, num_channels_original, num_pixels_cubelets, cubelets):
@@ -222,9 +217,13 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     else:
         cubelets = get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, False, show_verifications)
 
-    spatially_scaled_cubelets = spatial_scaling(num_galaxies, num_pixels_cubelets, cubelets)
-    spatially_spectrally_scaled_cubelets = spectral_scaling(num_galaxies, num_channels_cubelets, spatially_scaled_cubelets)
+    #* Now we have to rescale spatially and spectrally the cubelets so they all have the same shape
 
+    num_pixels_cubelets_wanted = np.nanmin(num_pixels_cubelets)
+    num_channels_cubelets_wanted = np.nanmin(num_channels_cubelets)
+
+    spatially_scaled_cubelets = spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wanted, cubelets)
+    spatially_spectrally_scaled_cubelets = spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_wanted, spatially_scaled_cubelets)
 
     #* Now we shift each spectrum in each subcube to place it in rest frame with its HI emission at central channel
     #!!! Possible problem: if some cubelets have same spaxels (don't know if it's an issue)
@@ -241,9 +240,9 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     
     #* The number of channels for the new spectrum will be 242*2, which is the maximum number of channels that can be necessary for co-adding the spectra (supposing emission line in channel 1 and in channel 242 for two different spectra).
 
-    num_channels = int((spatially_spectrally_scaled_cubelets.shape[1]-1)/2)
-    num_pixels = int((spatially_spectrally_scaled_cubelets.shape[2]-1)/2)
+    num_channels_final = int((spatially_spectrally_scaled_cubelets.shape[1]-1)/2)
+    num_pixels_final = int((spatially_spectrally_scaled_cubelets.shape[2]-1)/2)
 
-    stacked_cube = stacking_process(type_of_datacube, num_galaxies, num_channels, num_pixels, central_width, spatially_spectrally_scaled_cubelets, weights_option, lum_distance)
+    stacked_cube = stacking_process(type_of_datacube, num_galaxies, num_channels_final, num_pixels_final, central_width, spatially_spectrally_scaled_cubelets, weights_option, lum_distance)
 
     return stacked_cube
