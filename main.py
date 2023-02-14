@@ -79,14 +79,15 @@ weights_option = 'fabello'
 lum_distance = 0.
 degree_fit_continuum = 1  #* Degree of fit of continuum around emission lines
 show_verifications = False
-test = True
+test = False
 
 #* We are going to extract cubelets of 81x81 kpc^2 around each galaxy for data and noise stack
 semi_distance_around_galaxies = 40*u.kpc
 
 #* Number of channels around which the emission is supposed to be located. We use it to extract the continuum of the spectra and calculate sigmas (for weights) !!!Correct value?
-central_width = 5 #!!!Also have to rescale it
+central_width = 5 #!!!Also have to rescale it #!!!Also have to rescale it
 
+#* Half-range of velocities around the galaxy emission we select and use in the cubelets
 #* Half-range of velocities around the galaxy emission we select and use in the cubelets
 semi_vel_around_galaxies = 500 * u.km / u.s
 
@@ -157,6 +158,7 @@ def main():
     wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, min_redshift, max_redshift = data_and_catalog_extraction(name_orig_data_cube, 0) # !!! Lots of unnecessary values
 
     freq_to_vel = u.doppler_optical(rest_freq*u.Hz) #!!! Convention used by the user (possible option)
+    freq_to_vel = u.doppler_optical(rest_freq*u.Hz) #!!! Convention used by the user (possible option)
     semi_freq_around_galaxies = abs((semi_vel_around_galaxies).to(u.MHz, equivalencies=freq_to_vel) - rest_freq*u.Hz)
 
     #!Extract from the catalog the 3D positions of the galaxies
@@ -219,7 +221,7 @@ def main():
     L_best, C_best, S_N_data = S_N_measurement_test(stacked_data_cube, num_pixels_cubelets_final, num_channels_cubelets_final, wcs, central_spaxel, central_spaxel, central_channel, rest_freq, channel_to_freq, flux_units, degree_fit_continuum)
     print(f"Best combination of (L, C) in order to calculate S/N: L={L_best}, C={C_best}. Best S/N: {S_N_data:.2f}.\n")
 
-    """print("\nPSF STACKING\n")
+    print("\nPSF STACKING\n")
 
     #! Get stacked PSF datacube
     PSF = fits.getdata(name_orig_PSF_cube, ext=0)
@@ -229,7 +231,7 @@ def main():
 
     print("PSF stacked cube obtained!\n")
 
-    print("\nNOISE STACKING\n")"""
+    print("\nNOISE STACKING\n")
 
     #! Get stacked noises datacube and calculate their S/N ratio
     # ? Redshifts switched
@@ -250,11 +252,10 @@ def main():
 
         S_N_noise_Healy = S_N_calculation(stacked_noise_cube_Healy, wcs, num_channels_cubelets_final, central_spaxel, central_spaxel, central_channel, L_best, C_best, degree_fit_continuum)
         print(f"S/N of noise cube from switched redshifts: {S_N_noise_Healy:.3f}!\n")
-    exit()
 
     names = ["data_stack.fits", "PSF_stack.fits", "noise_stack_Healy.fits"]
     names_original = [name_orig_data_cube, name_orig_PSF_cube, name_orig_data_cube]
-    datacubes = [stacked_data_cube, stacked_PSF_cube, stacked_noise_cube_Healy]
+    datacubes = [stacked_data_cube, stacked_PSF_cube]#, stacked_noise_cube_Healy]
     horizontal_dimensions = [2*num_pixels_cubelets_final, 4*num_pixels_cubelets_final, 2*num_pixels_cubelets_final]
     vertical_dimensions = [2*num_pixels_cubelets_final, 4*num_pixels_cubelets_final, 2*num_pixels_cubelets_final]
 
@@ -281,6 +282,7 @@ def main():
         fits.setval(name_stacked_cube, 'CRVAL3', value=rest_freq)
 
     #* We plot the spectrum of the central spaxel (where all the galaxies lie)
+    plot_spaxel_spectrum(stacked_data_cube, num_galaxies, rest_freq, channel_to_freq, 2*num_channels_cubelets_final+1, flux_units, central_spaxel, central_spaxel, 10**6, 'Results/stacked_data_central_spaxel')
     plot_spaxel_spectrum(stacked_data_cube, num_galaxies, rest_freq, channel_to_freq, 2*num_channels_cubelets_final+1, flux_units, central_spaxel, central_spaxel, 10**6, 'Results/stacked_data_central_spaxel')
 
 

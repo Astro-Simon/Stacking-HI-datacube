@@ -11,6 +11,7 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
     • Input
     - num_galaxies [int]: Number of galaxies of the sample
     - num_channels_cubelets [array - int]: Semirange of channels in spectral axis extracted around each galaxy's emission line
+    - num_channels_cubelets [array - int]: Semirange of channels in spectral axis extracted around each galaxy's emission line
     - num_pixels_cubelets [array - int]: Semirange of spaxels extracted around each galaxy
     - list_pixels_X [array - int]: Horizontal positions of the galaxies
     - list_pixels_Y [array - int]: Vertical positions of the galaxies
@@ -126,6 +127,7 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
     • Input
     - num_galaxies [int]: Number of galaxies of the sample
     - num_channels_cubelets [int]: Semirange of channels in spectral axis
+    - num_channels_cubelets [int]: Semirange of channels in spectral axis
     - num_pixels_cubelets [int]: Semirange of spaxels extracted around each galaxy
     - central_width [int]: Number of channels where we consider the central (HI) lies; used for calculating sigma
     - pre_stacking_cubelets [array - float]: Array of cubelets shifted and wrapped of each galaxy
@@ -137,6 +139,7 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
     - stacked_cube [array - float]: Stacked datacube 
     """
 
+    stacked_cube = np.zeros((2*num_channels_cubelets+1, 2*num_pixels_cubelets+1, 2*num_pixels_cubelets+1))
     stacked_cube = np.zeros((2*num_channels_cubelets+1, 2*num_pixels_cubelets+1, 2*num_pixels_cubelets+1))
     
     with alive_bar((2*num_pixels_cubelets+1)*(2*num_pixels_cubelets+1)*num_galaxies, bar='circles', title=f'{type_of_datacube} stacking in progress') as bar:
@@ -181,6 +184,7 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
 
     • Input
     - num_galaxies [int]: Number of galaxies of the sample
+    - num_channels_cubelets [array - int]: Semirange of channels in spectral axis extracted around each galaxy's emission line
     - num_channels_cubelets [array - int]: Semirange of channels in spectral axis extracted around each galaxy's emission line
     - num_pixels_cubelets [array - int]: Semirange of spaxels extracted around each galaxy
     - coords_RA [array - float]: List of the horizontal coordinates of each galaxy (in deg)

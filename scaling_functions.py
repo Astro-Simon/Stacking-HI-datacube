@@ -37,6 +37,7 @@ def spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wante
     • Input
     - num_galaxies [int]: Number of galaxies of the sample
     - num_channels_cubelets [int]: Semirange of channels in spectral axis
+    - num_channels_cubelets [int]: Semirange of channels in spectral axis
     - rest_freq_HI [float]: Frequency around which spectra are shifted and wrapped
     - freq_ini [float]: Initial frequency (Hz)
     - channel_to_freq [float]: Ratio between channel and frequency
@@ -62,6 +63,9 @@ def spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wante
                 print(f"Integrated flux ratio: {np.nansum(scaled_crop_cubelet[17])/(scale**2*np.nansum(cubelet[17]))}.")
                 print(f"Maximum value: {np.nanmax(spaxel)/np.nanmax(scaled_crop_spaxel)}.")
                 f, axarr = plt.subplots(1,3)
+                print(f"Integrated flux ratio: {np.nansum(scaled_crop_cubelet[17])/(scale**2*np.nansum(cubelet[17]))}.")
+                print(f"Maximum value: {np.nanmax(spaxel)/np.nanmax(scaled_crop_spaxel)}.")
+                f, axarr = plt.subplots(1,3)
                 # use the created array to output your multiple images. In this case I have stacked 4 images vertically
                 axarr[0].imshow(cubelet[17], origin='lower')
                 axarr[1].imshow(scaled_cubelet[17], origin='lower')
@@ -74,9 +78,11 @@ def spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wante
 def spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_wanted, cubelets):
     """
     Function that scales the spectral dimension of each cubelet.
+    Function that scales the spectral dimension of each cubelet.
 
     • Input
     - num_galaxies [int]: Number of galaxies of the sample
+    - num_channels_cubelets [int]: Semirange of channels in spectral axis
     - num_channels_cubelets [int]: Semirange of channels in spectral axis
     - rest_freq_HI [float]: Frequency around which spectra are shifted and wrapped
     - freq_ini [float]: Initial frequency (Hz)

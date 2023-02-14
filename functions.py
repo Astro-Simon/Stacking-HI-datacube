@@ -107,6 +107,7 @@ def fit_continuum_of_spectrum(spectrum, x_axis, emission_channel, semirange, deg
     • Input
     - spectrum [array - float]: fluxes of the spectrum
     - num_channels [int]: Semirange of channels in spectral axis
+    - num_channels [int]: Semirange of channels in spectral axis
     - emission_channel [int]: Central channel of the emission line
     - semirange [int]: Half of the width of the emission line. Every flux outside the range will be considered as continuum
 
@@ -138,42 +139,6 @@ def fit_continuum_of_spectrum(spectrum, x_axis, emission_channel, semirange, deg
     ax.set_title("Continuum Fitting") 
     ax.grid(True)
     plt.show()"""
-
-
-
-    """full_length = len(spectrum)
-
-    spectrum_central_region = spectrum[emission_channel-semirange:emission_channel+semirange+1]
-    continuum = np.concatenate((spectrum[:emission_channel-semirange], np.repeat(np.nan, int(2*semirange+1)), spectrum[emission_channel+semirange+1:]))
-            
-    #?print(len(spectrum[:emission_channel-C-1]), len(spectrum[emission_channel+C:]), num_channels)
-    #?print(spectrum[:emission_channel-C])"""
-
-    """plt.bar(np.linspace(1, len(spectrum), len(spectrum)), spectrum)
-    plt.bar(np.linspace(emission_channel-semirange, emission_channel+semirange+1, len(spectrum_central_region)), spectrum_central_region)
-    plt.bar(np.linspace(1, len(spectrum), len(spectrum)), continuum)
-
-    plt.show()"""
-
-    #* Let's calculate the standard deviation of the continuum outside the central region. First we fit the continuum
-    """#?First degree fit
-    with warnings.catch_warnings(): #?Ignaramos los warnings
-        warnings.simplefilter('ignore')
-        linfitter = fitting.LinearLSQFitter()
-        poly_cont_1 = linfitter(models.Polynomial1D(degree), np.linspace(1, full_length, full_length)[np.isfinite(continuum)], continuum[np.isfinite(continuum)])
-
-    with warnings.catch_warnings(): #?Ignaramos los warnings
-        warnings.simplefilter('ignore')
-        fitter = fitting.LevMarLSQFitter()
-        mask = np.isfinite(continuum)
-        fitted_model = fitter(poly_cont_1, np.linspace(1, full_length, full_length)[mask], continuum[mask])
-        fitted_lines = fitted_model(np.linspace(1, full_length, full_length))
-
-    fitted_continuum = continuum - fitted_lines
-
-    #* Now we calculate the S/N in the central region, using the sum of the emission and the std_dev of the continuum
-    fitted_spectrum = spectrum - fitted_model(full_channels)
-    fitted_central_region = spectrum_central_region - fitted_model(np.linspace(emission_channel-semirange, emission_channel+semirange, 2*semirange+1))"""
 
     return fitted_spectrum, fitted_central_region, fitted_continuum
 
