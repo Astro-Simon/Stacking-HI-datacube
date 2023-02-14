@@ -3,10 +3,6 @@ from scipy import ndimage
 from alive_progress import alive_bar
 import matplotlib.pyplot as plt
 
-from spectres import spectres
-import scipy.stats as stats
-import math
-
 
 def scale_2D_image(output_coords, scale, shift_x, shift_y):
     dim_y = output_coords[1]
@@ -29,7 +25,6 @@ def scale_1D_spectrum(output_coords, scale, shift):
 
     return (output_coords[0], shifted_rescaled_dim_z)
 
-#!!! One scaling for each cubelets or one scaling for each channel??
 def spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wanted, cubelets):
     """
     Function that calculate the spatial scaling necessary for each cubelet and scale them.
@@ -56,13 +51,13 @@ def spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wante
             scaled_crop_cubelet = scaled_cubelet[:, :2*num_pixels_cubelets_wanted+1, :2*num_pixels_cubelets_wanted+1] #Crop
 
             scaled_cubelets.append(scaled_crop_cubelet)
+            
+            """print(f"Integrated flux ratio (new/old): {np.nansum(cubelet[0])/(scale**2*np.nansum(cubelet[0]))}")
+            print(f"Maximum value ratio (new/old): {np.nanmax(scaled_crop_cubelet[0])/np.nanmax(cubelet[0])}")"""
 
-            #!!! Keep track of the integrated flux changes 
+            #!!! Keep track of the integrated flux changes
 
             """if(i==2):
-                print(f"Integrated flux ratio: {np.nansum(scaled_crop_cubelet[17])/(scale**2*np.nansum(cubelet[17]))}.")
-                print(f"Maximum value: {np.nanmax(spaxel)/np.nanmax(scaled_crop_spaxel)}.")
-                f, axarr = plt.subplots(1,3)
                 print(f"Integrated flux ratio: {np.nansum(scaled_crop_cubelet[17])/(scale**2*np.nansum(cubelet[17]))}.")
                 print(f"Maximum value: {np.nanmax(spaxel)/np.nanmax(scaled_crop_spaxel)}.")
                 f, axarr = plt.subplots(1,3)
@@ -111,9 +106,10 @@ def spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_
                     
                     scaled_crop_spaxel = scaled_spaxel[:2*num_channels_cubelets_wanted+1] #Crop
 
+                    """print(f"Integrated flux ratio (new/old): {np.nansum(scaled_crop_spaxel)/(scale*np.nansum(spaxel))}")
+                    print(f"Maximum value ratio (new/old): {np.nanmax(scaled_crop_spaxel)/np.nanmax(spaxel)}")"""
+
                     """if(i==2 and x==10, y==10):
-                        print(f"Integrated flux ratio: {np.nansum(scaled_crop_spaxel)/(scale*np.nansum(spaxel))}.")
-                        print(f"Maximum value: {np.nanmax(spaxel)/np.nanmax(scaled_crop_spaxel)}.")
                         f, axarr = plt.subplots(3,1) 
                         # use the created array to output your multiple images. In this case I have stacked 4 images vertically
                         axarr[0].plot(np.linspace(1, len(spaxel), len(spaxel)), spaxel)

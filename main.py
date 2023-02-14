@@ -79,7 +79,7 @@ weights_option = 'fabello'
 lum_distance = 0.
 degree_fit_continuum = 1  #* Degree of fit of continuum around emission lines
 show_verifications = False
-test = False
+test = True
 
 #* We are going to extract cubelets of 81x81 kpc^2 around each galaxy for data and noise stack
 semi_distance_around_galaxies = 40*u.kpc
@@ -198,13 +198,13 @@ def main():
     central_channel = int(num_channels_cubelets_final) #* Position of the stacked emission after the stacking #!!! Use nanmin
 
     if(num_channels_cubelets[maxi] < central_width):
-        print("The emission cannot be wider than the width of the whole spectral axis. Change 'central_width'.\n")
+        print("The emission cannot be wider than the width of the whole spectral axis. Modify 'central_width'.\n")
         exit()
     if((2*num_channels_cubelets[maxi]+1) > data.shape[0]):
-        print("The cubelets cannot be spectrally wider than the data datacube. Change 'semi_vel_around_galaxies'.\n")
+        print("The cubelets cannot be spectrally wider than the data datacube. Modify 'semi_vel_around_galaxies'.\n")
         exit()
     if((2*num_pixels_cubelets[maxi]+1) > data.shape[1] or (2*num_pixels_cubelets[maxi]+1) > data.shape[2]):
-        print("The cubelets cannot be wider spatially than the data datacube. Change 'semi_distance_around_galaxies'.\n")
+        print("The cubelets cannot be wider spatially than the data datacube. Modify 'semi_distance_around_galaxies'.\n")
         exit()
 
     print(f'\n\nStacking {num_galaxies} cubelets of ~{semi_distance_around_galaxies*2} x {semi_distance_around_galaxies*2} x {2*semi_vel_around_galaxies:.2f} ({zmin:.3f} < z < {zmax:.3f})...\n')
@@ -216,6 +216,8 @@ def main():
     stacked_data_cube = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, num_pixels_cubelets_final, num_channels_cubelets_final, weights_option, lum_distance, show_verifications)
     #toc = time.perf_counter()
     print(f"Data stacked cube obtained!")
+
+    exit()
 
     #! Calculate best (L, C) combination for S/N measurement
     L_best, C_best, S_N_data = S_N_measurement_test(stacked_data_cube, num_pixels_cubelets_final, num_channels_cubelets_final, wcs, central_spaxel, central_spaxel, central_channel, rest_freq, channel_to_freq, flux_units, degree_fit_continuum)

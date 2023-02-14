@@ -30,7 +30,6 @@ def S_N_calculation(datacube, wcs, num_channels, center_x, center_y, emission_ch
 
     return S_N
 
-
 def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, wcs, center_x, center_y, emission_channel, rest_freq, channel_to_freq, flux_units, degree_fit_continuum):
     """
     Metafunction that calculates the best combination of (L, C) in order to estimate the S/N ratio of a datacube in a circular region integrating the spaxels first.
@@ -78,7 +77,7 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
                 S_N_best = S_N
             signal_to_noise_ratios[index_array_L, index_array_C] = S_N
 
-            """if (C==13 and L==3):
+            if (C==13 and L==3):
                 full_channels = np.linspace(0, 2*num_channels_cubelets+1, 2*num_channels_cubelets+1)
                 spectrum_central_region = integrated_spectrum[emission_channel-C:emission_channel+C+1]
                 continuum = np.concatenate((integrated_spectrum[:emission_channel-C-1], np.repeat(np.nan, int(2*C+1)), integrated_spectrum[emission_channel+C:]))
@@ -98,12 +97,7 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
                 #?Save the figure
                 ax.legend(loc='best', fontsize=16)
                 fig.tight_layout()
-                plt.show()
                 plt.savefig("Verification_process/SN_best/SN_continuum_fit.pdf")
-
-                print(np.linspace(1, center_channel-C-1, center_channel-C-1), len(np.linspace(1, center_channel-C-1, center_channel-C-1)))
-                print(np.linspace(center_channel-C, center_channel+C, 2*C+1), len(np.linspace(center_channel-C, center_channel+C, 2*C+1)))
-                print(np.linspace(center_channel+C+1, num_channels_cubelets, num_channels_cubelets - center_channel - C), len(np.linspace(center_channel+C+1, num_channels_cubelets, num_channels_cubelets - center_channel - C)))
 
                 fig, ax = plt.subplots(figsize=(19.2, 10.8))
 
@@ -128,7 +122,7 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
 
                 plt.tight_layout()
 
-                plt.savefig(f'Verification_process/SN_best/regions_SN_spectrum_{L}_{C}.pdf')"""
+                plt.savefig(f'Verification_process/SN_best/regions_SN_spectrum_{L}_{C}.pdf')
             index_array_C += 1
         index_array_L += 1
 
