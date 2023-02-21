@@ -195,3 +195,22 @@ def plot_spaxel_spectrum(datacube, num_galaxies, rest_freq, channel_to_freq, num
     plt.tight_layout()
 
     plt.savefig('%s.pdf' %name)
+
+
+"""x = np.linspace(0., 10., 200)
+y = 50 * np.exp(-0.5 * (x - 6.3) ** 2 / 0.1 ** 2) + 25 * np.exp(-0.5 * (x - 2.3) ** 2 / 0.1 ** 2)
+y += 10*np.random.normal(0., 0.5, x.shape) + 2*x
+emission_channel = np.argmax(y)
+semirange = 10
+degree = 1
+fitted_spectrum, fitted_central_region, fitted_continuum = fit_continuum_of_spectrum(y, x, emission_channel, semirange, degree)
+
+plt.plot(x, y)
+plt.plot(x, fitted_spectrum)
+emission_channel = np.argmax(y[:100])
+
+
+fitted_spectrum, fitted_central_region, fitted_continuum = fit_continuum_of_spectrum(y, x, 20, semirange, degree)
+
+plt.plot(x, fitted_spectrum)
+plt.show()"""

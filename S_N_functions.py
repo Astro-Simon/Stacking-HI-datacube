@@ -68,7 +68,7 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
             x_axis = np.arange(2*num_channels_cubelets+1)
             new_spectrum, new_central_region, fitted_continuum = fit_continuum_of_spectrum(integrated_spectrum, x_axis, emission_channel, C, degree_fit_continuum)
 
-            std_dev = np.nanstd(new_central_region)
+            std_dev = np.nanstd(fitted_continuum)
 
             S_N = np.nansum(new_central_region)/(std_dev*np.sqrt(2*C+1))
 

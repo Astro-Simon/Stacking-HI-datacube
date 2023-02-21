@@ -25,7 +25,7 @@ def scale_1D_spectrum(output_coords, scale, shift):
 
     return (output_coords[0], shifted_rescaled_dim_z)
 
-def spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wanted, cubelets):
+def spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wanted, cubelets, spatial_scales):
     """
     Function that calculate the spatial scaling necessary for each cubelet and scale them.
 
@@ -70,7 +70,48 @@ def spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wante
 
     return scaled_cubelets
 
-def spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_wanted, cubelets):
+
+    #print(cubelets[0][0].shape)
+
+    #new_image = (ndimage.geometric_transform(cubelets[0][0], scale_2D_image, cval=0, extra_keywords={'scale':scale, 'shift_x':0, 'shift_y':0})) #Rescale
+    diff = -1
+    scaled_cubelets = []
+    for i in range(num_galaxies):
+
+        scale = spatial_scales[i]
+
+        print('\n', scale, 19/cubelets[i][0].shape[1], 19/21)
+
+        print(cubelets[i][0].shape)
+
+        new_image = resize(cubelets[i][0], (19, 19), anti_aliasing=False, preserve_range=False)/(19/cubelets[i][0].shape[1])**2
+        #new_image = ndimage.geometric_transform(cubelets[i][0], scale_2D_image, cval=0, extra_keywords={'scale':19/cubelets[i][0].shape[1], 'shift_x':2, 'shift_y':2})[1:19, 1:19]/(19/cubelets[i][0].shape[1])**2
+
+        #print(new_image)
+
+        cropped_new_image = new_image[:2*num_pixels_cubelets_wanted+1, :2*num_pixels_cubelets_wanted+1]
+
+        """print(f"Integrated flux ratio (new/old): {np.nanmean(new_image)/(np.nanmean(cubelets[i][0]))}")
+
+        if(abs(np.nansum(cropped_new_image)/(scale**2*np.nansum(np.abs(cubelets[i][0]))) - 1) > diff):
+            diff = abs(np.nansum(cropped_new_image)/(scale**2*np.nansum(cubelets[i][0])) - 1)
+        
+        print(f"Maximum value ratio (new/old): {np.nanmax(cropped_new_image)/np.nanmax(cubelets[i][0])}")"""
+
+        #!!! Keep track of the integrated flux changes
+        """if(abs(np.nansum(cropped_new_image)/(scale**2*np.nansum(cubelets[i][0])) - 1) > 0.89):
+            factor = np.nansum(np.nansum(new_image)/(scale**2*np.nansum(cubelets[0][0])))
+            f, axarr = plt.subplots(1, 2)
+            # use the created array to output your multiple images. In this case I have stacked 4 images vertically
+            axarr[0].imshow(cubelets[i][0], origin='lower')
+            axarr[1].imshow(new_image, origin='lower')
+            plt.show()
+        print(diff)"""
+        scaled_cubelets.append(cropped_new_image)
+
+    return scaled_cubelets
+
+def spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_wanted, cubelets, spectral_scales):
     """
     Function that scales the spectral dimension of each cubelet.
     Function that scales the spectral dimension of each cubelet.
@@ -89,7 +130,7 @@ def spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_
     - scaled_cubelets [array - float]: Array of cubelets of each galaxy scaled spatially
     """
 
-    scaled_cubelets = np.zeros((num_galaxies, 2*num_channels_cubelets_wanted+1, cubelets[0].shape[1], cubelets[0].shape[2]))    
+    scaled_cubelets = np.zeros((num_galaxies, 2*num_channels_cubelets_wanted+1, cubelets[0].shape[1], cubelets[0].shape[2]))
     with alive_bar(num_galaxies*cubelets[0].shape[2]*cubelets[0].shape[1], bar='circles', title='Spectral scaling of cubelets in progress') as bar:
         for i, cubelet in enumerate(cubelets):
             scale = (2*num_channels_cubelets_wanted+1)/(2*num_channels_cubelets[i]+1)
@@ -122,3 +163,42 @@ def spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_
                     scaled_cubelets[i, :, y, x] = scaled_crop_spaxel
 
     return scaled_cubelets
+
+"""from astropy.utils.data import download_file
+
+import matplotlib.pyplot as plt
+
+from astropy.io import fits
+image_file = download_file('http://data.astropy.org/tutorials/FITS-images/HorseHead.fits', cache=True )
+
+hdu_list = fits.open(image_file)
+hdu_list.info()
+datos = hdu_list[0].data[210:231, 210:231]
+
+from skimage import data, color
+from skimage.transform import rescale, resize, downscale_local_mean
+
+image = color.rgb2gray(data.astronaut())
+
+print(image.shape)
+print(datos.shape)
+
+new_data = resize(datos, (19, 19), anti_aliasing=True, preserve_range=True)
+
+print(type(datos))
+
+print(new_data)
+
+scale = 19/21
+
+print(f"Integrated flux ratio (new/old): {np.nansum(new_data)/(scale**2*np.nansum(datos))}")
+
+print(f"Maximum value ratio (new/old): {np.nanmax(new_data)/np.nanmax(datos)}")
+
+f, axarr = plt.subplots(1, 2)
+# use the created array to output your multiple images. In this case I have stacked 4 images vertically
+axarr[0].imshow(datos, origin='lower')
+axarr[1].imshow(new_data, origin='lower')
+plt.show()
+
+"""

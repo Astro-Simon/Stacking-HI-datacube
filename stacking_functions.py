@@ -178,7 +178,7 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
     
     return stacked_cube
 
-def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, weights_option, luminosity_distances, show_verifications):
+def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, spatial_scales, spectral_scales, weights_option, luminosity_distances, show_verifications):
     """
     Metafunction that extract the cubelets, shift and wrap them and stack them.
 
@@ -226,8 +226,8 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     num_pixels_cubelets_wanted = np.nanmin(num_pixels_cubelets)
     num_channels_cubelets_wanted = np.nanmin(num_channels_cubelets)
 
-    spatially_scaled_cubelets = spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wanted, cubelets)
-    spatially_spectrally_scaled_cubelets = spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_wanted, spatially_scaled_cubelets)
+    spatially_scaled_cubelets = spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wanted, cubelets, spatial_scales)
+    spatially_spectrally_scaled_cubelets = spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_wanted, spatially_scaled_cubelets, spectral_scales)
 
     #* Now we shift each spectrum in each subcube to place it in rest frame with its HI emission at central channel
     #!!! Possible problem: if some cubelets have same spaxels (don't know if it's an issue)
