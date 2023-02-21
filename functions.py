@@ -8,6 +8,7 @@ import matplotlib.ticker as mtick
 from photutils.aperture import CircularAperture, aperture_photometry
 from specutils.spectra import Spectrum1D, SpectralRegion
 from specutils.fitting import fit_generic_continuum
+from astropy.coordinates import SpectralCoord
 
 def galaxia_puntos(data, wcs, list_pixels_X, list_pixels_Y, pixel_x_min, pixel_x_max, pixel_y_min, pixel_y_max, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, flux_units, vmin, vmax):
     """
@@ -123,7 +124,11 @@ def fit_continuum_of_spectrum(spectrum, x_axis, emission_channel, semirange, deg
 
     with warnings.catch_warnings():  # Ignore warnings
         warnings.simplefilter('ignore')
-        fitted_model = fit_generic_continuum(spectrum_object, model=Chebyshev1D(degree))
+        try:
+            fitted_model = fit_generic_continuum(spectrum_object, model=Chebyshev1D(degree), exclude_regions=central_emission)
+        except:
+            fitted_model = fit_generic_continuum(spectrum_object, model=Chebyshev1D(degree))
+
 
     fitted_continuum = fitted_model(x_axis*u.um).value
 
@@ -166,20 +171,23 @@ def plot_spaxel_spectrum(datacube, num_galaxies, rest_freq, channel_to_freq, num
     fig, ax = plt.subplots(figsize=(19.2, 10.8))
     ax2 = ax.twiny()
 
-    ax.set_xlabel("Frequency (MHz)")
-    ax2.set_xlabel("Channels")
+    ax.set_xlabel("Relative velocity (km/s)")
+    ax2.set_xlabel("Frequency (MHz)")
     ax.set_ylabel(r"Flux density ($10^{-6}$ %s)" %flux_units, labelpad=12.0)
 
     freq_axis = np.linspace(rest_freq-channel_to_freq*num_channels_cubelets/2, rest_freq+channel_to_freq*num_channels_cubelets/2, num_channels_cubelets)*10**(-6)
-    chann_axis = np.linspace(1, num_channels_cubelets, num_channels_cubelets)
+
+    vel_axis = SpectralCoord(freq_axis * u.MHz, redshift=0).to(u.km / u.s, doppler_rest = rest_freq*u.Hz, doppler_convention='optical')
 
     ax.grid(True, alpha=0.5, which="minor", ls=":")
     ax.grid(True, alpha=0.7, which="major")
 
     ax.plot([], [], label='Number of cubelets stacked: %i' %num_galaxies, alpha=0)
 
-    ax.bar(freq_axis, spectrum, color='black', alpha=1, label='Stacked spectrum', zorder=1, width=0.1)
-    ax2.bar(chann_axis, spectrum, visible=False)
+    ax.bar(vel_axis, spectrum, color='black', alpha=1, zorder=1, width=20, label='Stacked spectrum')
+    ax2.bar(freq_axis, spectrum, visible=False)
+
+    ax2.invert_xaxis()
 
     ax.set_ylim(min(spectrum)-1, max(spectrum)+1)
 
@@ -188,7 +196,7 @@ def plot_spaxel_spectrum(datacube, num_galaxies, rest_freq, channel_to_freq, num
 
     #plt.plot(new_X_axis, avg_spectrum, '-.', color='midnightblue', alpha=1, label='Average spectrum')
 
-    ax.vlines(rest_freq/1e6, min(spectrum), max(spectrum), linestyles='dashdot', color='red', label='HI position',  alpha=1, zorder=0)
+    ax.vlines(0, min(spectrum), max(spectrum), linestyles='dashdot', color='red', label='HI position',  alpha=1, zorder=0)
 
     ax.legend(loc='best')
 

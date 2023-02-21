@@ -76,7 +76,6 @@ name_catalog = 'G10COSMOSCatv05.csv_z051_sq_chiles_specz'
 #!!! Use kpc instead of number of pixels and angstroms/Hz instead of number of channels
 cosmo = FlatLambdaCDM(H0=70*u.km / u.s / u.Mpc, Tcmb0=2.725 * u.K, Om0=0.3)
 weights_option = 'fabello'
-luminosity_distances = 0.
 degree_fit_continuum = 1  #* Degree of fit of continuum around emission lines
 show_verifications = False
 test = False
@@ -231,11 +230,11 @@ def main():
 
     #! Get stacked data datacube
     #tic = time.perf_counter()
-    stacked_data_cube = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, spatial_scales, spectral_scales,weights_option, luminosity_distances, show_verifications)
+    stacked_data_cube = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, spatial_scales, spectral_scales, weights_option, luminosity_distances, show_verifications)
     #toc = time.perf_counter()
     print(f"Data stacked cube obtained!")
 
-    #! Calculate best (L, C) combination for S/N measurement
+    """#! Calculate best (L, C) combination for S/N measurement
     L_best, C_best, S_N_data = S_N_measurement_test(stacked_data_cube, num_pixels_cubelets_final, num_channels_cubelets_final, wcs, central_spaxel, central_spaxel, central_channel, rest_freq, channel_to_freq, flux_units, degree_fit_continuum)
     print(f"Best combination of (L, C) in order to calculate S/N: L={L_best}, C={C_best}. Best S/N: {S_N_data:.2f}.\n")
 
@@ -297,10 +296,9 @@ def main():
         # ?Change the channel of reference: now it's the centered channel
         fits.setval(name_stacked_cube, 'CRPIX3', value=int(num_channels_cubelets_final/2))
         # ?Change the value of the channel of reference: now it's the emission of interest
-        fits.setval(name_stacked_cube, 'CRVAL3', value=rest_freq)
+        fits.setval(name_stacked_cube, 'CRVAL3', value=rest_freq)"""
 
     #* We plot the spectrum of the central spaxel (where all the galaxies lie)
-    plot_spaxel_spectrum(stacked_data_cube, num_galaxies, rest_freq, channel_to_freq, 2*num_channels_cubelets_final+1, flux_units, central_spaxel, central_spaxel, 10**6, 'Results/stacked_data_central_spaxel')
     plot_spaxel_spectrum(stacked_data_cube, num_galaxies, rest_freq, channel_to_freq, 2*num_channels_cubelets_final+1, flux_units, central_spaxel, central_spaxel, 10**6, 'Results/stacked_data_central_spaxel')
 
 
