@@ -3,158 +3,164 @@ import os
 import csv
 from astropy.io import fits
 from astropy.wcs import WCS
-import argparse
+
+import os
+from astropy.io import fits
+from astropy.wcs import WCS
+import numpy as np
 
 def copy_header(name_orig_cube):
-    """ 
-    Function that extract information from the header of the datacube,
-    show it and write it in a file.
-
-    • Input
-    - name_orig_cube [string]: name of the datacube with '.fits' extension
-
-    • Output
-    - wcs [WCS]: WCS of the file
-    - rest_freq [float]: Rest frequency of HI emission Original rest frequency of the datacube
-    - pixel_X_to_AR [float]: Ratio pixel X (pix)/AR (deg)
-    - pixel_Y_to_Dec [float]: Ratio pixel Y (pix)/Dec (deg)
-    - channel_to_freq [float]: Ratio between channel and frequency
-    - X_AR_ini [float]: Initial value of pixel X (deg)
-    - X_AR_final [float]: Final value of pixel X (deg)
-    - Y_DEC_ini [float]: Initial value of pixel Y (deg)
-    - Y_DEC_final [float]: Final value of pixel Y (deg)
-    - freq_ini [float]: Initial frequency (Hz)
-    - freq_final [float]: Final frequency (Hz)
-    - flux_units [string]: Units of the flux
-    - num_pixels_X [int]: Number of pixels in X axis
-    - num_pixels_Y [int]: Number of pixels in Y axis
-    - num_channels [int]: Number of channels
     """
+    Copy header from a data cube file to a separate file and extract some useful parameters from the header.
 
-    #* We extract the header
+    Parameters
+    ----------
+    name_orig_cube : str
+        Name of the data cube file.
+
+    Returns
+    -------
+    wcs : astropy.wcs.WCS object
+        WCS object used to plot the cube.
+    rest_freq : float
+        Rest frequency of the data cube.
+    pixel_X_to_AR : float
+        Pixel scale in the X direction.
+    pixel_Y_to_Dec : float
+        Pixel scale in the Y direction.
+    pixel_scale : float
+        Square root of the product of the X and Y pixel scales.
+    channel_to_freq : float
+        Frequency resolution of the data cube.
+    X_AR_ini : float
+        Initial X coordinate of the cube in astronomical units.
+    Y_DEC_ini : float
+        Initial Y coordinate of the cube in declination.
+    freq_ini : float
+        Initial frequency of the cube.
+    freq_final : float
+        Final frequency of the cube.
+    flux_units : str
+        Units of the flux in the data cube.
+    """
+    # Extract the header
     hdul = fits.open(name_orig_cube)
-
-    #* We can show the basic info of the header
-    hdul.info()
-
-    #* We assign the variable 'hdr' the header of the datacube
     hdr = hdul[0].header
 
-    #* We use this variable in order to make the plots of the cube, extracting the spatial coordinates only [2, 1]
-    wcs = WCS(hdr, naxis=[1, 2])
-    
-    #* We create the file of the header and copy the header in it
+    # Create the file of the header and copy the header in it
     path = 'Headers/'
-    try:
-        if not os.path.isdir(path):
-            os.makedirs(path)
-        f = open(f"{path}header.txt", "w")
+    if not os.path.isdir(path):
+        os.makedirs(path)
+    with open(f"{path}header.txt", "w") as f:
         f.write(repr(hdr))
-        f.close()
-    except:
-        print("\nThe header was not copied to a file.\n")
 
-    #* Parameters obtained from the header
-    pixel_X_to_AR = float(hdr['CDELT1'])
-    pixel_Y_to_Dec = float(hdr['CDELT2'])
-    channel_to_freq = float(hdr['CDELT3'])
-    units = hdr['CUNIT3'] #!!! Change units of frequency
-    try:
-        rest_freq = float(hdr['RESTFRQ'])
-    except:
-        print("\nWARNING: The rest frequency is missing.")
-        exit()
+    # Parameters obtained from the header
+    pixel_X_to_AR = hdr.get('CDELT1', 0)
+    pixel_Y_to_Dec = hdr.get('CDELT2', 0)
+    channel_to_freq = hdr.get('CDELT3', 0)
+    rest_freq = hdr.get('RESTFRQ')
+    if rest_freq is None:
+        print("\nWARNING: The rest frequency is missing.")  # Allow user to input values
 
-    X_AR_ini = float(hdr['CRVAL1']) - pixel_X_to_AR*float(hdr['CRPIX1'])
-    X_AR_final = float(hdr['CRVAL1']) + pixel_X_to_AR*float(hdr['NAXIS1']-1)
-    Y_DEC_ini = float(hdr['CRVAL2']) - pixel_Y_to_Dec*float(hdr['CRPIX2'])
-    Y_DEC_final = Y_DEC_ini + pixel_Y_to_Dec*float(hdr['NAXIS2']-1)
-    freq_ini = float(hdr['CRVAL3']) - channel_to_freq*(float(hdr['CRPIX3']) - 1)
-    freq_final = float(hdr['CRVAL3']) - channel_to_freq*float(hdr['CRPIX3']) + channel_to_freq*float(hdr['NAXIS3'])
+    X_AR_ini = hdr.get('CRVAL1', 0) - pixel_X_to_AR * hdr.get('CRPIX1', 0)
+    X_AR_final = hdr.get('CRVAL1', 0) + pixel_X_to_AR * (hdr.get('NAXIS1', 0) - 1)
+    Y_DEC_ini = hdr.get('CRVAL2', 0) - pixel_Y_to_Dec * hdr.get('CRPIX2', 0)
+    Y_DEC_final = Y_DEC_ini + pixel_Y_to_Dec * (hdr.get('NAXIS2', 0) - 1)
+    freq_ini = hdr.get('CRVAL3', 0) - channel_to_freq * (hdr.get('CRPIX3', 0) - 1)
+    freq_final = hdr.get('CRVAL3', 0) - channel_to_freq * hdr.get('CRPIX3', 0) + channel_to_freq * hdr.get('NAXIS3', 0) - 1
 
-    flux_units = hdr['BUNIT']
+    flux_units = hdr.get('BUNIT')
 
-    num_pixels_X = int(hdr['NAXIS1'])
-    num_pixels_Y = int(hdr['NAXIS2'])
-    num_channels = int(hdr['NAXIS3'])
+    pixel_scale = np.sqrt(np.abs(pixel_X_to_AR * pixel_Y_to_Dec))
 
-    pixel_scale = np.sqrt(np.abs(pixel_X_to_AR*pixel_Y_to_Dec)) #!!! Supposing the pixels are squared
-
-    """#* Show the results on screen
-    print(f"\nNumber of channels: {num_channels}")
-    print(f"Units of flux: {hdr['BUNIT']}")
-    print(f"Coordinates of first pixel: (AR, Dec) = ({int(X_AR_ini/15)} h {int((X_AR_ini/15-int(X_AR_ini/15))*60)} min {((X_AR_ini/15-int(X_AR_ini/15))*60-int((X_AR_ini/15-int(X_AR_ini/15))*60))*60:.2f} sec, {int(Y_DEC_ini)}º {int((Y_DEC_ini-int(Y_DEC_ini))*60)}' {((Y_DEC_ini-int(Y_DEC_ini))*60-int((Y_DEC_ini-int(Y_DEC_ini))*60))*60:.2f}'')")
-    print(f"Coordinates of first pixel: ({X_AR_ini:.2f}º, {Y_DEC_ini:.2f}º)")
-    print(f"Coordinates of last pixel: ({X_AR_final:.2f}º, {Y_DEC_final:.2f}º)")
-    print(f"Initial frequency: {freq_ini/1e6:.2f} MHz")
-    print(f"Final frequency: {freq_final/1e6} MHz")
-    print(f"Ratio pixel/right ascension: 1 px = {pixel_X_to_AR:.2e}º")
-    print(f"Ratio pixel/declination: 1 px = {pixel_Y_to_Dec:.2e}º")
-    print(f"Ratio channel/frequency: 1 channel = {channel_to_freq/1e3:.2f} kHz")"""
-
-    #* We close the header
+    # Close the header
     hdul.close()
 
+    wcs = WCS(hdr, naxis=[1, 2])
+
     #!!! What happens if one of these variables are not in the header? Should I create the variable, try to update it if the value is found, and then return it?
-    return wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels
+    return wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, Y_DEC_ini, freq_ini, freq_final, flux_units
 
-def data_and_catalog_extraction(name_orig_cube, extension):
+def data_and_catalog_extraction(name_orig_cube: str, extension: int) -> tuple:
     """
-    Metafunction that extract the array of fluxes of the datacube and information of the header.
+    Extracts relevant data and catalog information from a fits file.
+    Parameters:
+    -----------
+    name_orig_cube : str
+        Name of the original fits file.
+    extension : int
+        Extension of the fits file.
 
-    • Input
-    - name_orig_cube [string]: name of the datacube with '.fits' extension
-    - extension [int]: extension of the datacube where fluxed are stocked
-
-    • Output
-    - wcs [WCS]: WCS of the file
-    - rest_freq [float]: Rest frequency of HI emission Original rest frequency of the datacube
-    - pixel_X_to_AR [float]: Ratio pixel X (pix)/AR (deg)
-    - pixel_Y_to_Dec [float]: Ratio pixel Y (pix)/Dec (deg)
-    - channel_to_freq [float]: Ratio between channel and frequency
-    - X_AR_ini [float]: Initial value of pixel X (deg)
-    - X_AR_final [float]: Final value of pixel X (deg)
-    - Y_DEC_ini [float]: Initial value of pixel Y (deg)
-    - Y_DEC_final [float]: Final value of pixel Y (deg)
-    - freq_ini [float]: Initial frequency (Hz)
-    - freq_final [float]: Final frequency (Hz)
-    - flux_units [string]: Units of the flux
-    - num_pixels_X [int]: Number of pixels in X axis
-    - num_pixels_Y [int]: Number of pixels in Y axis
-    - num_channels [int]: Number of channels
-    - data [array - float]: Array of fluxed of the datacube
-    - z_min [float]: Minimal redshift we have access to with this datacube
-    - z_max [float]: Maximal redshift we have access to with this datacube
+    Returns:
+    --------
+    tuple
+        Tuple containing the following information:
+        wcs : astropy.wcs.WCS
+            World coordinate system information.
+        rest_freq : float
+            Rest frequency of the data.
+        pixel_X_to_AR : float
+            Conversion factor from pixel to right ascension.
+        pixel_Y_to_Dec : float
+            Conversion factor from pixel to declination.
+        pixel_scale : float
+            Pixel scale.
+        channel_to_freq : float
+            Conversion factor from channel to frequency.
+        X_AR_ini : float
+            Initial right ascension value.
+        Y_DEC_ini : float
+            Initial declination value.
+        freq_ini : float
+            Initial frequency value.
+        flux_units : str
+            Units of flux.
+        data : numpy.ndarray
+            Extracted data.
+        z_min : float
+            Minimum accessible redshift.
+        z_max : float
+            Maximum accessible redshift.
     """
-    
-    wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels = copy_header(name_orig_cube)
+    # Extract header information.
+    wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, Y_DEC_ini, freq_ini, freq_final, flux_units = copy_header(name_orig_cube)
 
+    # Extract data information.
     data = fits.getdata(name_orig_cube, ext=extension)
     data = data[0]
 
-    #* First we determine which redshifts we have access to in this datacube 
-    z_min = rest_freq/freq_final - 1
-    z_max = rest_freq/freq_ini - 1
+    # Determine accessible redshifts.
+    z_min = rest_freq / freq_final - 1
+    z_max = rest_freq / freq_ini - 1
 
-    return wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, X_AR_final, Y_DEC_ini, Y_DEC_final, freq_ini, freq_final, flux_units, num_pixels_X, num_pixels_Y, num_channels, data, z_min, z_max
+    return wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, Y_DEC_ini, freq_ini, flux_units, data, z_min, z_max
 
-def get_galaxies_positions(name_catalog, z_min, z_max):
+def get_galaxies_positions(name_catalog:str, z_min:float, z_max:float)->tuple:
     """
-    Function that extract the spatial and spectral positions of the galaxies of the sample.
+    This function selects the spatial coordinates and redshift of the galaxies,
+    saves the position of each galaxy using the columns 'RA_08' (column 47) and 'DEC_08' (column 48)
+    and the redshift with 'Z_BEST' (column 146).
 
-    • Input
-    - name_catalog [string]: name of the catalog of the sample of galaxies
-    - z_min [float]: Minimal redshift we have access to with this datacube
-    - z_max [float]: Maximal redshift we have access to with this datacube
+    Parameters:
+    ----------
+    name_catalog : str
+        The name of the csv catalog containing the RA_08, DEC_08 and Z_BEST columns
+    z_min : float
+        Minimum redshift value to be considered
+    z_max : float
+        Maximum redshift value to be considered
 
-    • Output
-    - coords_RA [array - float]: List of the horizontal coordinates of each galaxy (in deg)
-    - coords_DEC [array - float]: List of the vertical coordinates of each galaxy (in deg)
-    - redshifts [array - float]: Redshifts of all the galaxies
-    - num_galaxies [int]: Number of galaxies of the sample
+    Returns:
+    --------
+    tuple : (coords_RA, coords_DEC, redshifts, num_galaxies)
+        A tuple containing the RA and DEC coordinates and the redshift of each galaxy 
+        that satisfies the redshift range (z_min, z_max)
+        
+    Example:
+    --------
+    >>> get_galaxies_positions('galaxies.csv', 0.5, 1.0)
+    (array([1.2, 4.5, 6.7]), array([2.4, 5.6, 7.8]), array([0.6, 0.8, 0.9]), 3)
     """
-
-    #* Now we select the spatial coordinates and the redshift of the galaxies. We save the position of each galaxy using the columns 'RA_08' (column 47) and 'DEC_08' (column 48) and the redshift with 'Z_BEST' (column 146).
 
     coords_RA = np.zeros(0) #* Right ascension coordinates of each galaxy (in deg)
     coords_DEC = np.zeros(0) #* Declination coordinates of each galaxy (in deg)
@@ -168,5 +174,5 @@ def get_galaxies_positions(name_catalog, z_min, z_max):
                 coords_DEC = np.append(coords_DEC, float(row['DEC_08']))
                 redshifts = np.append(redshifts, float(row['Z_BEST']))
                 num_galaxies += 1
-    
+
     return coords_RA, coords_DEC, redshifts, num_galaxies
