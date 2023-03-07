@@ -91,17 +91,11 @@ def spatial_scaling(num_galaxies, num_pixels_cubelets, num_pixels_cubelets_wante
     scaled_cubelets = []
     with alive_bar(num_galaxies, bar='circles', title='Spatial scaling of cubelets in progress') as bar:
         for i, cubelet in enumerate(cubelets):
-            if(num_pixels_cubelets_wanted < num_pixels_cubelets[i]):
-                scale = int(2 * num_pixels_cubelets_wanted + 1) / int(2 * num_pixels_cubelets[i] + 1)
-                scaled_cropped_cubelet = np.zeros((cubelet.shape[0], 2 * num_pixels_cubelets_wanted + 1, 2 * num_pixels_cubelets_wanted + 1))
-                for z in range(cubelet.shape[0]):
-                    scaled_cubelet = ndimage.geometric_transform(cubelet[z], scale_2D_image, cval=0, extra_keywords={'scale': scale, 'shift_x': 0, 'shift_y': 0})  # Rescale
+            scale = int(2 * num_pixels_cubelets_wanted + 1) / int(2 * num_pixels_cubelets[i] + 1)
+            scaled_cropped_cubelet = np.zeros((cubelet.shape[0], 2 * num_pixels_cubelets_wanted + 1, 2 * num_pixels_cubelets_wanted + 1))
+            for z in range(cubelet.shape[0]):
+                scaled_cubelet = ndimage.geometric_transform(cubelet[z], scale_2D_image, cval=0, extra_keywords={'scale': scale, 'shift_x': 0, 'shift_y': 0})  # Rescale
                 scaled_cropped_cubelet[z] = scaled_cubelet[:2 * num_pixels_cubelets_wanted + 1, :2 * num_pixels_cubelets_wanted + 1]  # Crop
-            elif(num_pixels_cubelets_wanted > num_pixels_cubelets[i]):
-                print("\nError: we have found a cubelet with less pixels than the final number of pixels wanted.")
-                exit()
-            else: #num_pixels_cubelets_wanted == num_pixels_cubelets[i]
-                scaled_cropped_cubelet = cubelet
             scaled_cubelets.append(scaled_cropped_cubelet)
             bar()
 
@@ -137,22 +131,16 @@ def spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_
     
     scaled_cubelets = np.zeros((num_galaxies, 2 * num_channels_cubelets_wanted + 1, 2 * num_pixels_cubelets_wanted + 1, 2 * num_pixels_cubelets_wanted + 1))
 
-    with alive_bar(num_galaxies, bar='circles', title='Spectral scaling of cubelets in progress') as bar:
+    with alive_bar(num_galaxies * (2 * num_pixels_cubelets_wanted + 1) * (2 * num_pixels_cubelets_wanted + 1), bar='circles', title='Spectral scaling of cubelets in progress') as bar:
         for i, cubelet in enumerate(cubelets):
-            if(num_channels_cubelets_wanted < num_channels_cubelets[i]):
-                scale = int(2*num_channels_cubelets_wanted+1)/int(2*num_channels_cubelets[i]+1)
-                for x in range(cubelet.shape[2]):
-                    for y in range(cubelet.shape[1]):
-                        spectrum = cubelet[:, y, x]
-                        scaled_spectrum = ndimage.geometric_transform(spectrum, scale_1D_spectrum, cval=0, extra_keywords={'scale':scale, 'shift':0}) # Rescale
-                        scaled_crop_spectrum = scaled_spectrum[:2*num_channels_cubelets_wanted+1] # Crop
-                        scaled_cubelets[i, :, y, x] = scaled_crop_spectrum
-            elif(num_channels_cubelets_wanted > num_channels_cubelets[i]):
-                print("\nError: we have found a cubelet with less channels than the final number of channels wanted.")
-                exit()
-            else: #num_channels_cubelets_wanted == num_channels_cubelets[i]
-                scaled_cubelets[i, :, :, :] = cubelet
-            bar()
+            scale = int(2*num_channels_cubelets_wanted+1)/int(2*num_channels_cubelets[i]+1)
+            for x in range(cubelet.shape[2]):
+                for y in range(cubelet.shape[1]):
+                    spectrum = cubelet[:, y, x]
+                    scaled_spectrum = ndimage.geometric_transform(spectrum, scale_1D_spectrum, cval=0, extra_keywords={'scale':scale, 'shift':0}) # Rescale
+                    scaled_crop_spectrum = scaled_spectrum[:2*num_channels_cubelets_wanted+1] # Crop
+                    scaled_cubelets[i, :, y, x] = scaled_crop_spectrum
+                    bar()
                     
     return scaled_cubelets
 
