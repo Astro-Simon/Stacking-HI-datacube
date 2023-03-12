@@ -8,7 +8,6 @@ import matplotlib.ticker as mtick
 from photutils.aperture import CircularAperture, aperture_photometry
 from specutils.spectra import Spectrum1D, SpectralRegion
 from specutils.fitting import fit_generic_continuum
-from astropy.coordinates import SpectralCoord
 
 
 def plot_galaxies_positions(data, wcs, list_pixels_X, list_pixels_Y, pixel_x_min, pixel_x_max, pixel_y_min, pixel_y_max,
@@ -100,7 +99,7 @@ def plot_galaxies_positions(data, wcs, list_pixels_X, list_pixels_Y, pixel_x_min
 
     print("\nPositions of the galaxies obtained!\n")
 
-def extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels, center_x, center_y, radius):
+def extract_spectrum_from_spatial_circular_region(datacube, center_x, center_y, radius):
     """
     Extract the integrated spectrum from a circular region in a data cube.
 
@@ -108,10 +107,6 @@ def extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels, c
     ----------
     data_cube : numpy.ndarray
         The data cube to extract the spectrum from.
-    wcs : astropy.wcs.WCS
-        The World Coordinate System of the data cube.
-    num_channels : int
-        The number of channels in the data cube.
     center_x : float
         The x coordinate of the center of the circular region.
     center_y : float
@@ -128,14 +123,15 @@ def extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels, c
     x, y = np.indices(datacube.shape[1:])
     r = np.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
     mask = r <= radius
-    integrated_spectrum = datacube[:, mask].sum(axis=1)    
-    
-    """mask = aperture.to_mask(method='exact')
+    integrated_spectrum = datacube[:, mask].sum(axis=1)
+
+    """aperture = CircularAperture((center_x, center_y), radius)
+    mask = aperture.to_mask(method='exact')
     
     plt.imshow(mask)
     plt.show()
 
-    plt.imshow(datacube[int(num_channels/2)], cmap='gray_r', origin='lower')
+    plt.imshow(datacube[int(len(datacube)/2)], cmap='gray_r', origin='lower')
     aperture.plot(color='blue', lw=1.5, alpha=0.5)
     plt.show()"""
 
@@ -179,80 +175,24 @@ def fit_continuum_of_spectrum(spectrum, x_axis, emission_channel, semirange, deg
             fitted_model = fit_generic_continuum(spectrum_object, model=Chebyshev1D(degree))
 
     # Extract fitted continuum from the fitted model
-    fitted_continuum = fitted_model(x_axis*u.um).value
+    if(fitted_model.c1.value == 0.): #type: ignore
+        with warnings.catch_warnings():  # Ignore warnings
+            warnings.simplefilter('ignore')
+            fitted_model = fit_generic_continuum(spectrum_object, model=Chebyshev1D(degree))
 
-    # Subtract fitted continuum from spectrum to obtain fitted spectrum
-    fitted_spectrum = spectrum - fitted_continuum
+    fit_curve = fitted_model(x_axis*u.um).value #type: ignore
+
+    # Subtract curve from spectrum to obtain fitted spectrum
+    fitted_spectrum = spectrum - fit_curve
+    
+    fitted_continuum = np.copy(fitted_spectrum)
+
+    fitted_continuum[emission_channel-semirange:emission_channel+semirange+1] = np.nan
+
+    if(np.nanstd(fitted_continuum) == 0 or np.isnan(np.nanstd(fitted_continuum))):
+        fitted_continuum = fitted_spectrum
 
     # Extract central region of the spectrum and subtract the fitted continuum to obtain fitted central region
-    spectrum_central_region = spectrum[emission_channel-semirange:emission_channel+semirange+1]
-    fitted_central_region = spectrum_central_region - fitted_model(np.linspace(emission_channel-semirange, emission_channel+semirange, 2*semirange+1)*u.um).value
+    fitted_central_region = fitted_spectrum[emission_channel-semirange:emission_channel+semirange+1]
 
     return fitted_spectrum, fitted_central_region, fitted_continuum
-
-def plot_spaxel_spectrum(datacube, spaxel_x, spaxel_y, rest_freq, channel_to_freq, num_channels_cubelets,
-                          flux_units, num_galaxies, factor=1, name='spectrum_plot'):
-    """
-    Plot the spectrum of a single spaxel in a datacube.
-
-    Parameters
-    ----------
-    datacube : `~numpy.ndarray`
-        The datacube containing the spectrum.
-    spaxel_x : int
-        The x-coordinate of the spaxel.
-    spaxel_y : int
-        The y-coordinate of the spaxel.
-    rest_freq : float
-        The rest frequency of the spectral line in Hz.
-    channel_to_freq : float
-        The conversion factor between channel number and frequency in MHz.
-    num_channels_cubelets : int
-        The number of channels in each cubelet.
-    flux_units : str
-        The units of the flux density.
-    num_galaxies : int, optional
-        The number of galaxies to stack, by default 1.
-    factor : float, optional
-        The factor to scale the spectrum by, by default 1.
-    name : str, optional
-        The name of the output file, by default 'spectrum_plot.pdf'.
-
-    Returns
-    -------
-    None
-
-    """
-    spectrum = datacube[:, spaxel_y, spaxel_x] * factor #* We extract the spectrum of the spaxel and rescale it
-
-    fig, ax = plt.subplots(figsize=(19.2, 10.8))
-    ax2 = ax.twiny()
-
-    ax.set_xlabel("Relative velocity (km/s)")
-    ax2.set_xlabel("Frequency (MHz)")
-    ax.set_ylabel(f"Flux density ($10^{{-6}}$ {flux_units})", labelpad=12.0)
-
-    freq_axis = np.linspace(rest_freq - channel_to_freq * num_channels_cubelets / 2,
-                             rest_freq + channel_to_freq * num_channels_cubelets / 2, num_channels_cubelets) * 1e-6
-
-    vel_axis = SpectralCoord(freq_axis * u.MHz, redshift=0).to(u.km / u.s, doppler_rest=rest_freq * u.Hz,
-                                                               doppler_convention='optical')
-
-    ax.grid(True, alpha=0.5, which="minor", ls=":")
-    ax.grid(True, alpha=0.7, which="major")
-
-    ax.plot([], [], label=f'Number of cubelets stacked: {num_galaxies}', alpha=0)
-
-    ax.bar(vel_axis, spectrum, color='black', alpha=1, zorder=1, width=20, label='Stacked spectrum')
-
-    ax.invert_xaxis()
-    ax.set_ylim(min(spectrum) - 1, max(spectrum) + 1)
-
-    ax.vlines(0, min(spectrum), max(spectrum), linestyles='--', color='red', label='HI position', alpha=1, zorder=0)
-    
-    # set the legend and layout
-    ax.legend(loc='best')
-    plt.tight_layout()
-    
-    # save the figure
-    plt.savefig('%s.pdf' % name)

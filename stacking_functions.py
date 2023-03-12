@@ -91,52 +91,7 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
         
     return cubelets
 
-def shift_and_wrap(redshifts, rest_freq, freq_ini, channel_to_freq, expected_emission_channel, num_channels_original, num_pixels_cubelets, cubelets):
-    """
-    Function that shifts the spectral axis of cubelets around the frequency of interest (HI - 1420 MHz) and then wrap the part of the spectrum that is out of boundaries.
-
-    • Input
-    - num_galaxies [int]: Number of galaxies of the sample
-    - redshifts [array - float]: Redshifts of all the galaxies
-    - rest_freq [float]: Frequency around which spectra are shifted and wrapped
-    - freq_ini [float]: Initial frequency (Hz)
-    - channel_to_freq [float]: Ratio between channel and frequency
-    - expected_emission_channel [int]: Channel where the emission line will lie at the end of the shifting/wrapping process
-    - num_channels_cubelets [array - int]: Number of channels of each cubelets
-    - num_pixels_cubelets [array - int]: Semirange of spaxels extracted around each galaxy
-    - cubelets [array - float]: Array of cubelets of each galaxy
-
-    • Output
-    - shifted_wrapped_cubelets [array - float]: Array of cubelets shifted and wrapped of each galaxy
-    """
-
-    #* We start by finding for each spectrum the position of their emission line. We want to place each spectrum centered on its emission line. In order to do that we have to calculate on which channel this line is and make it the centered channel of the stacked spectrum
-    shifted_wrapped_cubelets = []
-    for index, redshift in enumerate(redshifts):
-        emission_position = rest_freq/(1+redshift) #* Frequency of the position of the emission line (spectral observational position - not at rest)
-        channel_emission = int((emission_position - freq_ini)/channel_to_freq) #* Channel of the emission line (spectral observational position - not at rest)
-        shift_in_channels = int(expected_emission_channel - channel_emission) #* Number of channels that we have to shift the spectrum in order to center it (-: left, +: right)
-        num_pixels = num_pixels_cubelets[index]
-        num_channels = num_channels_original
-        cubelet = cubelets[index]
-        shifted_wrapped_cubelet = np.zeros((num_channels_original, 2*num_pixels+1, 2*num_pixels+1))
-        for pixel_Y in range(2*num_pixels+1):
-            for pixel_X in range(2*num_pixels+1):
-                if(shift_in_channels < 0): #* Shift to the left + wrap
-                    shifted_wrapped_cubelet[:, pixel_Y, pixel_X] = np.concatenate((cubelet[abs(shift_in_channels):, pixel_Y, pixel_X], cubelet[:abs(shift_in_channels), pixel_Y, pixel_X]))
-
-
-                elif(shift_in_channels > 0): #* Shift to the right + wrap
-                    shifted_wrapped_cubelet[:, pixel_Y, pixel_X] = np.concatenate((cubelet[(num_channels-shift_in_channels):, pixel_Y, pixel_X], cubelet[:(num_channels-shift_in_channels), pixel_Y, pixel_X]))
-
-                else: #* No shift nor wrap
-                    shifted_wrapped_cubelet[:, pixel_Y, pixel_X] = cubelet[:, pixel_Y, pixel_X]
-
-        shifted_wrapped_cubelets.append(shifted_wrapped_cubelet)
-
-    return shifted_wrapped_cubelets
-
-def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, central_width, pre_stacking_cubelets, weights_option, luminosity_distances=None):
+def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, central_width, pre_stacking_cubelets, weights_option, luminosity_distances):
     """
     Stack the input cubelets to produce a single datacube.
 
@@ -166,39 +121,55 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
     """
 
     stacked_cube = np.zeros((2*num_channels_cubelets + 1, 2*num_pixels_cubelets + 1, 2*num_pixels_cubelets + 1))
+    errorbar_min, errorbar_max = 0, 0
     
     with alive_bar((2*num_pixels_cubelets + 1)**2 * num_galaxies, bar='circles', title=f'{type_of_datacube} stacking in progress') as bar:
         for pixel_Y in range(2*num_pixels_cubelets + 1):
             for pixel_X in range(2*num_pixels_cubelets + 1):
                 rescale = 0
                 for i in range(num_galaxies):
-                    continuum_spectrum = np.concatenate((pre_stacking_cubelets[i, :int(num_channels_cubelets / 2) - central_width, pixel_Y, pixel_X], pre_stacking_cubelets[i, int(num_channels_cubelets / 2) + central_width:, pixel_Y, pixel_X]))
-                    sigma = np.std(continuum_spectrum)
+                    continuum_spectrum = np.concatenate((pre_stacking_cubelets[i, :int(num_channels_cubelets) - central_width, pixel_Y, pixel_X], pre_stacking_cubelets[i, int(num_channels_cubelets) + central_width:, pixel_Y, pixel_X]))
+
+                    RMS = 0
+                    for element in continuum_spectrum:
+                        RMS += np.sqrt(element**2)
+
+                    RMS /= np.sqrt(len(continuum_spectrum))
 
                     if weights_option == 'fabello':
-                        weight = 1 / sigma**2
+                        weight = 1 / RMS**2
                     elif weights_option == 'lah':
-                        weight = 1 / sigma
+                        weight = 1 / RMS
                     elif weights_option == 'delhaize':
-                        weight = 1 / (sigma * luminosity_distances[i]**2)**2
+                        weight = 1 / (RMS * luminosity_distances[i]**2)**2
                     else:
                         weight = 1
 
                     rescale += weight
-                    stacked_cube[:, pixel_Y, pixel_X] += pre_stacking_cubelets[i, :, pixel_Y, pixel_X] * weight
+                    stacked_cube[:, pixel_Y, pixel_X] += (pre_stacking_cubelets[i, :, pixel_Y, pixel_X] * weight)
                     bar()
+
+                if(type_of_datacube=='Data'):
+                    if(pixel_X==num_pixels_cubelets):
+                        if(pixel_Y==num_pixels_cubelets):
+                            errorbar_min = np.zeros(2*num_channels_cubelets+1)
+                            errorbar_max = np.zeros(2*num_channels_cubelets+1)
+                            for c in range(2*num_channels_cubelets+1):
+                                #print(pre_stacking_cubelets[:, c, pixel_Y, pixel_X], weight)
+                                errorbar_min[c] = np.nanmin(pre_stacking_cubelets[:, c, pixel_Y, pixel_X], axis=0) #!!! Should I use the weight?
+                                errorbar_max[c] = np.nanmax(pre_stacking_cubelets[:, c, pixel_Y, pixel_X], axis=0)
+                else:
+                    errorbar_min = np.zeros(2*num_channels_cubelets+1)
+                    errorbar_max = np.zeros(2*num_channels_cubelets+1)
                 
                 stacked_cube[:, pixel_Y, pixel_X] /= rescale
     
-    return stacked_cube
-
-
-import numpy as np
+    return stacked_cube, errorbar_min, errorbar_max
 
 def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets,
                    coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec,
                    datacube, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq,
-                   central_width, spatial_scales, spectral_scales, weights_option, luminosity_distances,
+                   central_width, central_spaxel, central_channel, weights_option, luminosity_distances,
                    show_verifications=False):
     """
     Process the data cubes for a set of galaxies and stack them.
@@ -291,8 +262,14 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     num_channels_final = int((spatially_spectrally_scaled_cubelets.shape[1] - 1) / 2)
     num_pixels_final = int((spatially_spectrally_scaled_cubelets.shape[2] - 1) / 2)
 
-    stacked_cube = stacking_process(type_of_datacube, num_galaxies, num_channels_final, num_pixels_final,
+    stacked_cube, errorbar_min, errorbar_max = stacking_process(type_of_datacube, num_galaxies, num_channels_final, num_pixels_final,
                                      central_width, spatially_spectrally_scaled_cubelets, weights_option,
                                      luminosity_distances)
 
-    return stacked_cube
+    # For the results, we calculate the integrated flux of each cubelet
+    integrated_flux_cubelets = np.zeros(num_galaxies)
+    if(type_of_datacube == 'Data'):
+        for index, cubelet in enumerate(spatially_spectrally_scaled_cubelets):
+            integrated_flux_cubelets[index] = np.nansum(cubelet)
+
+    return stacked_cube, integrated_flux_cubelets, errorbar_min, errorbar_max

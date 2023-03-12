@@ -136,7 +136,7 @@ def spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_
     
     scaled_cubelets = np.zeros((num_galaxies, 2 * num_channels_cubelets_wanted + 1, 2 * num_pixels_cubelets_wanted + 1, 2 * num_pixels_cubelets_wanted + 1))
 
-    with alive_bar(num_galaxies * (2 * num_pixels_cubelets_wanted + 1) * (2 * num_pixels_cubelets_wanted + 1), bar='circles', title='Spectral scaling of cubelets in progress') as bar:
+    with alive_bar(num_galaxies, bar='circles', title='Spectral scaling of cubelets in progress') as bar:
         for i, cubelet in enumerate(cubelets):
             if(num_channels_cubelets_wanted < num_channels_cubelets[i]):
                 scale = int(2*num_channels_cubelets_wanted+1)/int(2*num_channels_cubelets[i]+1)
@@ -146,11 +146,11 @@ def spectral_scaling(num_galaxies, num_channels_cubelets, num_channels_cubelets_
                         scaled_spectrum = ndimage.geometric_transform(spectrum, scale_1D_spectrum, cval=0, extra_keywords={'scale':scale, 'shift':0}) # Rescale
                         scaled_crop_spectrum = scaled_spectrum[:2*num_channels_cubelets_wanted+1] # Crop
                         scaled_cubelets[i, :, y, x] = scaled_crop_spectrum
-                        bar()
             elif(num_channels_cubelets_wanted > num_channels_cubelets[i]):
                 print("\nERROR: we found a cubelet with less channels than the wanted number.\n")
             else: #(num_channels_cubelets_wanted == num_channels_cubelets[i])
                 scaled_cubelets[i] = cubelet
+            bar()
 
                     
     return scaled_cubelets

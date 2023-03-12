@@ -1,0 +1,11 @@
+# Input parameters for DANEEL
+PATH_FILES=''
+DATA_DATACUBE='fullsurvey_1255~1285_image.fits'
+PSF_DATACUBE='fullsurvey_1255_1285_psf.fits'
+CATALOG='G10COSMOSCatv05.csv_z051_sq_chiles_specz'
+PATH_RESULTS='Results/'
+WEIGHTS='fabello'
+DEGREE_FIT_CONTINUUM=1
+CALCULATE_SNR=False
+WIDTH_CUBELETS_KPC=80
+WIDTH_CUBELETS_KMS=2000

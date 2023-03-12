@@ -81,6 +81,59 @@ def copy_header(name_orig_cube):
     #!!! What happens if one of these variables are not in the header? Should I create the variable, try to update it if the value is found, and then return it?
     return wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, Y_DEC_ini, freq_ini, freq_final, flux_units
 
+def param_file(filename: str) -> Tuple[str, str, str, str, str, str, int, str, u.Quantity, u.Quantity]:
+    """
+    Reads an input parameter file and returns a tuple with the parsed parameters.
+
+    Parameters
+    ----------
+    filename : str
+        The path of the input parameter file.
+
+    Returns
+    -------
+    Tuple[str, str, str, str, str, str, int, str, u.Quantity, u.Quantity]
+        A tuple containing the parsed parameters:
+            - general_path : str
+            - name_orig_data_cube : str
+            - name_orig_PSF_cube : str
+            - name_catalog : str
+            - path_results : str
+            - weights_option : str
+            - degree_fit_continuum : int
+            - bool_calculate_SNR : str
+            - semi_distance_around_galaxies : astropy.units.Quantity
+            - semi_vel_around_galaxies : astropy.units.Quantity
+    """
+    input_parameters = {}
+    with open(filename) as f:
+        for line in f:
+            if not line.startswith('#'):
+                key, value = line.strip().split("=")
+                input_parameters[key] = value
+
+    # Files and paths
+    general_path = input_parameters['PATH_FILES']
+    name_orig_data_cube = input_parameters['DATA_DATACUBE']
+    name_orig_PSF_cube = input_parameters['PSF_DATACUBE']
+    name_catalog = input_parameters['CATALOG']
+    path_results = input_parameters['PATH_RESULTS']
+    os.makedirs(path_results, exist_ok=True)
+
+    # Global parameters
+    # Use kpc instead of number of pixels and angstroms/Hz instead of number of channels
+    weights_option = input_parameters['WEIGHTS']
+    degree_fit_continuum = int(input_parameters['DEGREE_FIT_CONTINUUM'])  # Degree of fit of continuum around emission lines
+    bool_calculate_SNR = input_parameters['CALCULATE_SNR']
+
+    # We are going to extract cubelets of 81x81 kpc^2 around each galaxy for data and noise stack
+    semi_distance_around_galaxies = float(input_parameters['WIDTH_CUBELETS_KPC']) / 2 * u.kpc
+
+    # Half-range of velocities around the galaxy emission we select and use in the cubelets
+    semi_vel_around_galaxies = float(input_parameters['WIDTH_CUBELETS_KMS']) / 2 * u.km / u.s
+
+    return general_path, name_orig_data_cube, name_orig_PSF_cube, name_catalog, path_results, weights_option, degree_fit_continuum, bool_calculate_SNR, semi_distance_around_galaxies, semi_vel_around_galaxies
+
 def data_and_catalog_extraction(name_orig_cube: str, extension: int) -> tuple:
     """
     Extracts relevant data and catalog information from a fits file.

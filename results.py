@@ -75,7 +75,7 @@ def plot_spaxel_spectrum(path_results, data_datacube, noise_datacube, spaxel_x, 
     data_spectrum = data_datacube[:, spaxel_y, spaxel_x] * factor #* We extract the spectrum of the spaxel and rescale it
     noise_spectrum = noise_datacube[:, spaxel_y, spaxel_x] * factor #* We extract the spectrum of the spaxel and rescale it
 
-    fig, ax = plt.subplots(figsize=(19.2, 10.8))
+    fig, ax = plt.subplots(figsize=(12.8, 7.20))
     ax2 = ax.twiny()
 
     ax.set_xlabel("Relative velocity (km/s)")
@@ -109,7 +109,7 @@ def plot_spaxel_spectrum(path_results, data_datacube, noise_datacube, spaxel_x, 
     plt.tight_layout()
     
     # save the figure
-    plt.savefig(f'{path_results}{name}.pdf')
+    plt.savefig(f'{path_results}{name}.png')
 
     from specutils.manipulation import FluxConservingResampler, LinearInterpolatedResampler
     from specutils import Spectrum1D
@@ -125,5 +125,3 @@ def plot_spaxel_spectrum(path_results, data_datacube, noise_datacube, spaxel_x, 
     print(new_spec_fluxcon.spectral_axis, new_spec_fluxcon.flux)
     f, ax = plt.subplots()  
     ax.step(new_spec_fluxcon.spectral_axis, new_spec_fluxcon.flux)  
-
-    plt.show()

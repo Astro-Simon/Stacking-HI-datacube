@@ -1,10 +1,9 @@
 from functions import extract_spectrum_from_spatial_circular_region, fit_continuum_of_spectrum
 import numpy as np
 import matplotlib.pyplot as plt
-from astropy.wcs import WCS
 
 
-def S_N_calculation(datacube: np.ndarray, wcs: WCS, num_channels: int, center_x: int, center_y: int,
+def S_N_calculation(datacube: np.ndarray, num_channels: int, center_x: int, center_y: int,
                     emission_channel: int, L: int, C: int, degree_fit_continuum: int) -> float:
     """
     Calculates the signal-to-noise ratio of a given spectrum.
@@ -13,8 +12,6 @@ def S_N_calculation(datacube: np.ndarray, wcs: WCS, num_channels: int, center_x:
     ----------
     datacube : numpy.ndarray
         The 3D datacube containing the spectral data.
-    wcs : astropy.wcs.WCS
-        The World Coordinate System object of the datacube.
     num_channels : int
         The number of spectral channels to extract.
     center_x : int
@@ -36,17 +33,17 @@ def S_N_calculation(datacube: np.ndarray, wcs: WCS, num_channels: int, center_x:
         The signal-to-noise ratio of the spectrum.
     """
 
-    spectrum = extract_spectrum_from_spatial_circular_region(datacube, wcs, num_channels, center_x, center_y, L)
+    spectrum = extract_spectrum_from_spatial_circular_region(datacube, center_x, center_y, L)
     
     # Fit continuum of spectrum
     x_axis = np.arange(2 * num_channels + 1)
-    new_spectrum, new_central_region, fitted_continuum = fit_continuum_of_spectrum(spectrum, x_axis, emission_channel, C, degree_fit_continuum)
-    std_dev = np.nanstd(new_central_region)
-    S_N = np.nansum(new_central_region) / (std_dev * np.sqrt(2 * C + 1))
+    new_spectrum, fitted_central_region, fitted_continuum = fit_continuum_of_spectrum(spectrum, x_axis, emission_channel, C, degree_fit_continuum)
+    std_dev = np.nanstd(fitted_continuum)
+    S_N = np.nansum(fitted_central_region) / (std_dev * np.sqrt(2 * C + 1))
 
     return S_N
 
-def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, wcs, center_x, center_y, emission_channel, degree_fit_continuum):
+def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, center_x, center_y, emission_channel, degree_fit_continuum):
     """
     Signal-to-noise measurement test.
 
@@ -58,8 +55,6 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
         The number of pixels of the cubelets.
     num_channels_cubelets : int
         The number of channels of the cubelets.
-    wcs : astropy.wcs.WCS
-        The World Coordinate System.
     center_x : int
         The central pixel of the x-axis.
     center_y : int
@@ -82,19 +77,19 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
     """
     S_N_best = -1
     L_best, C_best = 0, 0
-    signal_to_noise_ratios = np.zeros((num_pixels_cubelets, num_channels_cubelets))
-    center_channel = num_channels_cubelets + 1
+    L_max, C_max = num_pixels_cubelets+1, int(datacube.shape[0]/4)+1
+    signal_to_noise_ratios = np.zeros((L_max-1, C_max-1))
     index_array_L = 0
     for L in range(1, num_pixels_cubelets+1):
-        integrated_spectrum = extract_spectrum_from_spatial_circular_region(datacube, wcs, 2*num_channels_cubelets+1, center_x, center_y, L)
+        integrated_spectrum = extract_spectrum_from_spatial_circular_region(datacube, center_x, center_y, L)
         index_array_C = 0
-        for C in range(1, num_channels_cubelets+1):
+        for C in range(1, C_max):
             x_axis = np.arange(2*num_channels_cubelets+1)
-            new_spectrum, new_central_region, fitted_continuum = fit_continuum_of_spectrum(integrated_spectrum, x_axis, emission_channel, C, degree_fit_continuum)
+            _, fitted_central_region, fitted_continuum = fit_continuum_of_spectrum(integrated_spectrum, x_axis, emission_channel, C, degree_fit_continuum)
 
             std_dev = np.nanstd(fitted_continuum)
 
-            S_N = np.nansum(new_central_region)/(std_dev*np.sqrt(2*C+1))
+            S_N = np.nansum(fitted_central_region)/(std_dev*np.sqrt(2*C+1))
 
             if S_N >= S_N_best:
                 L_best, C_best = L, C
@@ -106,10 +101,10 @@ def S_N_measurement_test(datacube, num_pixels_cubelets, num_channels_cubelets, w
 
     fig, ax = plt.subplots(figsize=(9, 7.20))
 
-    centers = [1, num_channels_cubelets - 1, 1, num_pixels_cubelets]
+    centers = [1, C_max - 1, 1, L_max]
     dx, = np.diff(centers[:2]) / (signal_to_noise_ratios.shape[1] - 0.5)
     dy, = -np.diff(centers[2:]) / (signal_to_noise_ratios.shape[0] - 0.5)
-    extent = [0.5, num_channels_cubelets + 0.5, 0.5, num_pixels_cubelets + 0.5]
+    extent = [0.5, C_max + 0.5, 0.5, L_max + 0.5]
 
     signals = ax.matshow(signal_to_noise_ratios, cmap="plasma", extent=extent, origin='lower', interpolation='nearest', aspect='auto')
 
