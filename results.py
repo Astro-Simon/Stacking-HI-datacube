@@ -111,7 +111,7 @@ def plot_spaxel_spectrum(path_results, data_datacube, noise_datacube, spaxel_x, 
     # save the figure
     plt.savefig(f'{path_results}{name}.png')
 
-    from specutils.manipulation import FluxConservingResampler, LinearInterpolatedResampler
+    """from specutils.manipulation import FluxConservingResampler, LinearInterpolatedResampler
     from specutils import Spectrum1D
     fluxcon = FluxConservingResampler()
     flux = data_spectrum * 10**-6 * u.Unit('Jy') 
@@ -124,4 +124,4 @@ def plot_spaxel_spectrum(path_results, data_datacube, noise_datacube, spaxel_x, 
 
     print(new_spec_fluxcon.spectral_axis, new_spec_fluxcon.flux)
     f, ax = plt.subplots()  
-    ax.step(new_spec_fluxcon.spectral_axis, new_spec_fluxcon.flux)  
+    ax.step(new_spec_fluxcon.spectral_axis, new_spec_fluxcon.flux)  """

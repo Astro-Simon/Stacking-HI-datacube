@@ -177,32 +177,32 @@ def main():
 
     #! Get stacked data datacube
     #tic = time.perf_counter()
-    stacked_data_cube, integrated_flux_cubelets, errorbar_min, errorbar_max = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, central_spaxel, central_channel, weights_option, luminosity_distances, show_verifications)
+    stacked_data_cube, integrated_flux_cubelets, errorbar_min, errorbar_max = datacube_stack('Data', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, central_spaxel, central_channel, weights_option, luminosity_distances)
     #toc = time.perf_counter()
     print(f"Data stacked cube obtained!")
 
     # Save the datacube
     save_datacube(path_results, 'data_stacked_cube', name_orig_data_cube, stacked_data_cube, num_channels_cubelets_final, rest_freq)
     
-    """print("\nPSF STACKING\n")
+    print("\nPSF STACKING\n")
 
     #! Get stacked PSF datacube
     PSF = fits.getdata(name_orig_PSF_cube, ext=0)
     PSF = PSF[0]
-    stacked_PSF_cube, _, _, _ = datacube_stack('PSF', num_galaxies, num_channels_cubelets, 2*num_pixels_cubelets, None, None, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, PSF, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, central_spaxel, central_channel, weights_option, luminosity_distances, show_verifications)
+    stacked_PSF_cube, _, _, _ = datacube_stack('PSF', num_galaxies, num_channels_cubelets, 2*num_pixels_cubelets, None, None, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, PSF, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, central_spaxel, central_channel, weights_option, luminosity_distances)
     #!!! Should we use weights for the PSF in the stacking process??
 
     print("PSF stacked cube obtained!")
 
     # Save the datacube
-    save_datacube(path_results, 'PSF_stacked_cube', name_orig_PSF_cube, stacked_PSF_cube, num_channels_cubelets_final, rest_freq)"""
+    save_datacube(path_results, 'PSF_stacked_cube', name_orig_PSF_cube, stacked_PSF_cube, num_channels_cubelets_final, rest_freq)
 
     print("\nNOISE STACKING\n")
 
     #! Get stacked noises datacube and calculate their S/N ratio
     # ? Redshifts switched
 
-    stacked_noise_cube, _, _, _ = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, central_spaxel, central_channel, weights_option, luminosity_distances, show_verifications)  # !!! Should I re-use the results from the data datacube?
+    stacked_noise_cube, _, _, _ = datacube_stack('Noise', num_galaxies, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, data, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq, central_width, central_spaxel, central_channel, weights_option, luminosity_distances)  # !!! Should I re-use the results from the data datacube?
     print("Noise stacked cube obtained!")
 
     # Save the datacube

@@ -3,11 +3,9 @@ import os
 import csv
 from astropy.io import fits
 from astropy.wcs import WCS
+import astropy.units as u
 
-import os
-from astropy.io import fits
-from astropy.wcs import WCS
-import numpy as np
+from functions import str_to_bool
 
 def copy_header(name_orig_cube):
     """
@@ -81,7 +79,7 @@ def copy_header(name_orig_cube):
     #!!! What happens if one of these variables are not in the header? Should I create the variable, try to update it if the value is found, and then return it?
     return wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, Y_DEC_ini, freq_ini, freq_final, flux_units
 
-def param_file(filename: str) -> Tuple[str, str, str, str, str, str, int, str, u.Quantity, u.Quantity]:
+def param_file(filename: str) -> tuple:
     """
     Reads an input parameter file and returns a tuple with the parsed parameters.
 
@@ -92,7 +90,7 @@ def param_file(filename: str) -> Tuple[str, str, str, str, str, str, int, str, u
 
     Returns
     -------
-    Tuple[str, str, str, str, str, str, int, str, u.Quantity, u.Quantity]
+    tuple: str, str, str, str, str, str, int, bool, u.Quantity, u.Quantity
         A tuple containing the parsed parameters:
             - general_path : str
             - name_orig_data_cube : str
@@ -101,7 +99,7 @@ def param_file(filename: str) -> Tuple[str, str, str, str, str, str, int, str, u
             - path_results : str
             - weights_option : str
             - degree_fit_continuum : int
-            - bool_calculate_SNR : str
+            - bool_calculate_SNR : bool
             - semi_distance_around_galaxies : astropy.units.Quantity
             - semi_vel_around_galaxies : astropy.units.Quantity
     """
@@ -124,7 +122,7 @@ def param_file(filename: str) -> Tuple[str, str, str, str, str, str, int, str, u
     # Use kpc instead of number of pixels and angstroms/Hz instead of number of channels
     weights_option = input_parameters['WEIGHTS']
     degree_fit_continuum = int(input_parameters['DEGREE_FIT_CONTINUUM'])  # Degree of fit of continuum around emission lines
-    bool_calculate_SNR = input_parameters['CALCULATE_SNR']
+    bool_calculate_SNR = str_to_bool(input_parameters['CALCULATE_SNR'])
 
     # We are going to extract cubelets of 81x81 kpc^2 around each galaxy for data and noise stack
     semi_distance_around_galaxies = float(input_parameters['WIDTH_CUBELETS_KPC']) / 2 * u.kpc

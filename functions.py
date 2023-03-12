@@ -9,6 +9,43 @@ from photutils.aperture import CircularAperture, aperture_photometry
 from specutils.spectra import Spectrum1D, SpectralRegion
 from specutils.fitting import fit_generic_continuum
 
+def str_to_bool(s: str) -> bool:
+    """
+    Convert a string representation of a boolean to a boolean value.
+
+    Parameters
+    ----------
+    s : str
+        The string to convert.
+
+    Returns
+    -------
+    bool
+        True if the string is 'True', False if the string is 'False'.
+
+    Raises
+    ------
+    ValueError
+        If the string is neither 'True' nor 'False'.
+
+    Examples
+    --------
+    >>> str_to_bool('True')
+    True
+    >>> str_to_bool('False')
+    False
+    >>> str_to_bool('foo')
+    Traceback (most recent call last):
+        ...
+    ValueError: String must be 'True' or 'False'.
+    """
+    s = s.lower()
+    if s == 'true':
+        return True
+    elif s == 'false':
+        return False
+    else:
+        raise ValueError("String must be 'True' or 'False'.")
 
 def plot_galaxies_positions(data, wcs, list_pixels_X, list_pixels_Y, pixel_x_min, pixel_x_max, pixel_y_min, pixel_y_max,
                             X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, flux_units, vmin=None, vmax=None):

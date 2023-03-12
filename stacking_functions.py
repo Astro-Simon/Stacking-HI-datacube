@@ -6,7 +6,7 @@ from alive_progress import alive_bar
 
 import numpy as np
 
-def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, is_PSF, show_verifications=False):
+def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, num_channels_cubelets, num_pixels_cubelets, coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, datacube, wcs, flux_units, is_PSF):
     """
     Extracts sub-cubes (cubelets) of a datacube around each galaxy, centered on the galaxy's position and with a given spectral range and spatial size.
     
@@ -29,7 +29,6 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
     - wcs (astropy.wcs.WCS): WCS object for the datacube.
     - flux_units (str): Units of the datacube's flux.
     - is_PSF (bool): If True, the galaxy is assumed to be a Point Spread Function (PSF) and is centered on the datacube.
-    - show_verifications (bool): If True, displays the galaxy positions on a plot of the datacube for verification purposes.
 
     Returns:
     -----------
@@ -44,7 +43,6 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
     - The spectral range of each cubelet is centered on the galaxy's redshifted emission line, with the number of channels given by `num_channels_cubelets`.
     - The spatial size of each cubelet is given by `num_pixels_cubelets` and is centered on the galaxy's position in pixel coordinates, converted from its RA and DEC coordinates using `X_AR_ini`, `pixel_X_to_AR`, `Y_DEC_ini`, and `pixel_Y_to_Dec`.
     - If a galaxy is on the edge of the datacube, spaxels that are out of the boundaries will have null spectra.
-    - If `show_verifications` is True, the function `galaxia_puntos()` is called to display the galaxy positions on a plot of the datacube.
     """ 
 
     cubelets = []
@@ -57,8 +55,8 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
         list_pixels_X = ((coords_RA - X_AR_ini) // pixel_X_to_AR).astype(int)
         list_pixels_Y = ((coords_DEC - Y_DEC_ini) // pixel_Y_to_Dec).astype(int)
     
-    if show_verifications:
-        plot_galaxies_positions(datacube, wcs, list_pixels_X, list_pixels_Y, 1, 1200, 1, 1200, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, flux_units, 12, 12, 15, 0.00005, None, None)
+    """if show_verifications:
+        plot_galaxies_positions(datacube, wcs, list_pixels_X, list_pixels_Y, 1, 1200, 1, 1200, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec, flux_units, 12, 12, 15, 0.00005, None, None)"""
         
     for index, z in enumerate(redshifts):
         emission_position = rest_freq / (1 + z)
@@ -169,8 +167,7 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
 def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets,
                    coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec,
                    datacube, wcs, flux_units, redshifts, rest_freq, freq_ini, channel_to_freq,
-                   central_width, central_spaxel, central_channel, weights_option, luminosity_distances,
-                   show_verifications=False):
+                   central_width, central_spaxel, central_channel, weights_option, luminosity_distances):
     """
     Process the data cubes for a set of galaxies and stack them.
 
@@ -220,8 +217,6 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
         Option to weight the co-addition of the spectra of the cubelets. Possible values: 'uniform' or 'distance'.
     luminosity_distances : list or ndarray
         List with the luminosity distance of each galaxy in the sample.
-    show_verifications : bool
-        Flag to show intermediate results for verification.
 
     Returns
     -------
@@ -239,15 +234,14 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
                                 channel_to_freq, num_channels_cubelets,
                                 num_pixels_cubelets, None, None, X_AR_ini,
                                 pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec,
-                                datacube, wcs, flux_units, True,
-                                show_verifications=False)
+                                datacube, wcs, flux_units, True)
     else:
         cubelets = get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini,
                                 channel_to_freq, num_channels_cubelets,
                                 num_pixels_cubelets, coords_RA, coords_DEC,
                                 X_AR_ini, pixel_X_to_AR, Y_DEC_ini,
                                 pixel_Y_to_Dec, datacube, wcs, flux_units,
-                                False, show_verifications=False)
+                                False)
 
     num_pixels_cubelets_wanted = int(np.nanmin(num_pixels_cubelets))
     num_channels_cubelets_wanted = int(np.nanmin(num_channels_cubelets))
