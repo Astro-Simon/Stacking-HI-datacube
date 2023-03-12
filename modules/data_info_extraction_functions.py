@@ -5,7 +5,7 @@ from astropy.io import fits
 from astropy.wcs import WCS
 import astropy.units as u
 
-from functions import str_to_bool
+from modules.functions import str_to_bool
 
 def copy_header(name_orig_cube):
     """

@@ -24,10 +24,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-from data_info_extraction_functions import param_file, data_and_catalog_extraction, get_galaxies_positions
-from stacking_functions import datacube_stack
-from S_N_functions import S_N_measurement_test, S_N_calculation
-from results import results_catalogue, save_datacube, plot_spaxel_spectrum
+from modules.data_info_extraction_functions import param_file, data_and_catalog_extraction, get_galaxies_positions
+from modules.stacking_functions import datacube_stack
+from modules.S_N_functions import S_N_measurement_test, S_N_calculation
+from modules.results import results_catalogue, save_datacube, plot_spaxel_spectrum
 
 general_path, name_orig_data_cube, name_orig_PSF_cube, name_catalog, path_results, weights_option, degree_fit_continuum, bool_calculate_SNR, semi_distance_around_galaxies, semi_vel_around_galaxies = param_file('param_file.txt')
 

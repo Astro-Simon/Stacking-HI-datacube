@@ -1,5 +1,5 @@
-from functions import plot_galaxies_positions
-from scaling_functions import spatial_scaling, spectral_scaling
+from modules.functions import plot_galaxies_positions
+from modules.scaling_functions import spatial_scaling, spectral_scaling
 import numpy as np
 import random
 from alive_progress import alive_bar

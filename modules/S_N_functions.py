@@ -1,4 +1,4 @@
-from functions import extract_spectrum_from_spatial_circular_region, fit_continuum_of_spectrum
+from modules.functions import extract_spectrum_from_spatial_circular_region, fit_continuum_of_spectrum
 import numpy as np
 import matplotlib.pyplot as plt
 
