@@ -109,7 +109,7 @@ def plot_spaxel_spectrum(path_results, data_datacube, noise_datacube, spaxel_x, 
     plt.tight_layout()
     
     # save the figure
-    plt.savefig(f'{path_results}{name}.png')
+    plt.savefig(f'{path_results}{name}.pdf')
 
     """from specutils.manipulation import FluxConservingResampler, LinearInterpolatedResampler
     from specutils import Spectrum1D
