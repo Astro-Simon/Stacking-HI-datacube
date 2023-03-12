@@ -90,12 +90,15 @@ def param_file(filename: str) -> tuple:
 
     Returns
     -------
-    tuple: str, str, str, str, str, str, int, bool, u.Quantity, u.Quantity
+    tuple: str, str, str, str, str, str, str, str, str, int, bool, u.Quantity, u.Quantity
         A tuple containing the parsed parameters:
             - general_path : str
             - name_orig_data_cube : str
             - name_orig_PSF_cube : str
             - name_catalog : str
+            - column_RA : str
+            - column_Dec : str
+            - column_z : str
             - path_results : str
             - weights_option : str
             - degree_fit_continuum : int
@@ -115,6 +118,9 @@ def param_file(filename: str) -> tuple:
     name_orig_data_cube = input_parameters['DATA_DATACUBE']
     name_orig_PSF_cube = input_parameters['PSF_DATACUBE']
     name_catalog = input_parameters['CATALOG']
+    column_RA = input_parameters['COLUMN_RA']
+    column_Dec= input_parameters['COLUMN_DEC']
+    column_z = input_parameters['COLUMN_Z']
     path_results = input_parameters['PATH_RESULTS']
     os.makedirs(path_results, exist_ok=True)
 
@@ -130,11 +136,12 @@ def param_file(filename: str) -> tuple:
     # Half-range of velocities around the galaxy emission we select and use in the cubelets
     semi_vel_around_galaxies = float(input_parameters['WIDTH_CUBELETS_KMS']) / 2 * u.km / u.s
 
-    return general_path, name_orig_data_cube, name_orig_PSF_cube, name_catalog, path_results, weights_option, degree_fit_continuum, bool_calculate_SNR, semi_distance_around_galaxies, semi_vel_around_galaxies
+    return general_path, name_orig_data_cube, name_orig_PSF_cube, name_catalog, column_RA, column_Dec, column_z, path_results, weights_option, degree_fit_continuum, bool_calculate_SNR, semi_distance_around_galaxies, semi_vel_around_galaxies
 
-def data_and_catalog_extraction(name_orig_cube: str, extension: int) -> tuple:
+def data_extraction(name_orig_cube: str, extension: int) -> tuple:
     """
-    Extracts relevant data and catalog information from a fits file.
+    Extracts relevant data and information from a fits file.
+    
     Parameters:
     -----------
     name_orig_cube : str
@@ -186,7 +193,7 @@ def data_and_catalog_extraction(name_orig_cube: str, extension: int) -> tuple:
 
     return wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, Y_DEC_ini, freq_ini, flux_units, data, z_min, z_max
 
-def get_galaxies_positions(name_catalog:str, z_min:float, z_max:float)->tuple:
+def get_galaxies_positions(name_catalog:str, z_min:float, z_max:float, column_RA:str, column_Dec:str, column_z:str)->tuple:
     """
     This function selects the spatial coordinates and redshift of the galaxies,
     saves the position of each galaxy using the columns 'RA_08' (column 47) and 'DEC_08' (column 48)
@@ -220,10 +227,10 @@ def get_galaxies_positions(name_catalog:str, z_min:float, z_max:float)->tuple:
         reader = csv.DictReader(csvfile, delimiter=' ')
         num_galaxies = 0 #* We will count the number of galaxies used in the stacking
         for row in reader:
-            if(z_min < float(row['Z_BEST']) < z_max): #* We can only use galaxies with spectra redshifted a certain range
-                coords_RA = np.append(coords_RA, float(row['RA_08']))
-                coords_DEC = np.append(coords_DEC, float(row['DEC_08']))
-                redshifts = np.append(redshifts, float(row['Z_BEST']))
+            if(z_min < float(row[column_z]) < z_max): #* We can only use galaxies with spectra redshifted a certain range
+                coords_RA = np.append(coords_RA, float(row[column_RA]))
+                coords_DEC = np.append(coords_DEC, float(row[column_Dec]))
+                redshifts = np.append(redshifts, float(row[column_z]))
                 num_galaxies += 1
 
     return coords_RA, coords_DEC, redshifts, num_galaxies

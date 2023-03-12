@@ -1,17 +1,5 @@
 # coding=utf-8
 
-#! Program that realize a stacking of the datacube 'fullsurvey_1255~1285_image.fits'.
-
-# In order to do that we have access to the optical positions and spectroscopic redshiftss of the galaxies contained in this datacube with the file 'G10COSMOSCatv05.csv_z051_sq_chiles_specz'.
-
-# ? The process goes as follow:
-# ? 1. We read the datacube and get the spectrum of each galaxy using their spatial coordinates (for now we suppose there is only one spectrum per galaxy).
-# ? 2. We stack this sample of spectra (at first we don't make any separation):
-# ?   2.1. Put every spectrum at rest frame.
-# ?   2.2. Make an average sum of the spectra.
-# ?   2.3. The stacked spectrum contains the HI line emission information.
-# ?   2.4. We create the stacked image (learning in progress).
-
 #! Libraries
 import os
 
@@ -24,14 +12,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-from modules.data_info_extraction_functions import param_file, data_and_catalog_extraction, get_galaxies_positions
+from modules.data_info_extraction_functions import param_file, data_extraction, get_galaxies_positions
 from modules.stacking_functions import datacube_stack
 from modules.S_N_functions import S_N_measurement_test, S_N_calculation
 from modules.results import results_catalogue, save_datacube, plot_spaxel_spectrum
 
-general_path, name_orig_data_cube, name_orig_PSF_cube, name_catalog, path_results, weights_option, degree_fit_continuum, bool_calculate_SNR, semi_distance_around_galaxies, semi_vel_around_galaxies = param_file('param_file.txt')
+general_path, name_orig_data_cube, name_orig_PSF_cube, name_catalog, column_RA, column_Dec, column_z, path_results, weights_option, degree_fit_continuum, bool_calculate_SNR, semi_distance_around_galaxies, semi_vel_around_galaxies = param_file('param_file.txt')
 
-cosmo = FlatLambdaCDM(H0=70*u.km / u.s / u.Mpc, Tcmb0=2.725 * u.K, Om0=0.3)
+cosmo = FlatLambdaCDM(H0=70*u.km / u.s / u.Mpc, Tcmb0=2.725*u.K, Om0=0.3)
 
 #* Number of channels around which the emission is supposed to be located. We use it to extract the continuum of the spectra and calculate sigmas (for weights) !!!Correct value?
 central_width = 5 #!!!Also have to rescale it
@@ -100,14 +88,14 @@ def main():
     original = args.original
     imagemagick = args.imagemagick"""
 
-    wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, Y_DEC_ini, freq_ini, flux_units, data, min_redshift, max_redshift = data_and_catalog_extraction(name_orig_data_cube, 0) 
+    wcs, rest_freq, pixel_X_to_AR, pixel_Y_to_Dec, pixel_scale, channel_to_freq, X_AR_ini, Y_DEC_ini, freq_ini, flux_units, data, min_redshift, max_redshift = data_extraction(name_orig_data_cube, 0) 
     
     freq_to_vel = u.doppler_optical(rest_freq*u.Hz) #!!! Convention used by the user (possible option)
     freq_to_vel = u.doppler_optical(rest_freq*u.Hz) #!!! Convention used by the user (possible option)
     semi_freq_around_galaxies = abs((semi_vel_around_galaxies).to(u.MHz, equivalencies=freq_to_vel) - rest_freq*u.Hz)
 
     #!Extract from the catalog the 3D positions of the galaxies
-    coords_RA, coords_DEC, redshifts, num_galaxies = get_galaxies_positions(name_catalog, min_redshift, max_redshift)
+    coords_RA, coords_DEC, redshifts, num_galaxies = get_galaxies_positions(name_catalog, min_redshift, max_redshift, column_RA, column_Dec, column_z)
 
     #* For each galaxy we calculate the number of pixels we need to get the same physical area determined by semi_distance_around_galaxies
     num_pixels_cubelets = np.zeros(num_galaxies)
