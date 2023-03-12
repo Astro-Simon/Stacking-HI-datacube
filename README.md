@@ -55,6 +55,12 @@ The description of the parameters are the following:
 
 The file has to be saved in the same directory as the 'main.py' program, and has to be called 'param_file.txt'.
 
+Steps:
+  1. Download `main.py` and the folder `modules/`.
+  2. Create a parameter file called `param_file.txt`.
+  3. Execute `main.py`.
+  4. With a bit of luck you should see the results in you `PATH_RESULTS` folder.
+
 ## Results
 The outputs created by the software:
   1. results_catalogue.csv:  A table containing the catalogue information of each galaxy and the integrated flux of their respective cubelet.
