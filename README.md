@@ -1,4 +1,4 @@
-# Datacube Analysis for Enhanced Emission Line stacking (DANEEL)
+# Datacube ANalysis for Enhanced Emission Line stacking (DANEEL)
 ## Introduction
 DANEEL extracts cubelets of galaxies in a datacube using a catalog and stack them over a referenced emission line to get a stacked datacube.
 Results include the data, PSF and noise-reference datacubes, as well as the spectrum of the spaxel where the stacked emission lies.
