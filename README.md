@@ -39,7 +39,6 @@ COLUMN_Z=Z_BEST
 PATH_RESULTS=Results/
 WEIGHTS=fabello
 DEGREE_FIT_CONTINUUM=1
-CALCULATE_SNR=False
 WIDTH_CUBELETS_KPC=80
 WIDTH_CUBELETS_KMS=2000
 ```
@@ -55,7 +54,7 @@ The description of the parameters are the following:
 * `PATH_RESULTS`: path of the directory where the results are to be saved,
 * `WEIGHTS`: method used for the weights applied during the stacking ('fabello', 'lah', 'delhaize' or None),
 * `DEGREE_FIT_CONTINUUM`: degree of the polynomial fit made in order to fit the continuum of the spectra,
-* `CALCULATE_SNR`: True in order to calculate the SNR of the central spectrum of the datacubes,
+* `NUMBER_OF_REFERENCE`: number of reference spectra to calculate in order to get the mean reference (min=5, max=25),
 * `WIDTH_CUBELETS_KPC`: spatial length in kpc of the extracted cubelets centered on the galaxies,
 * `WIDTH_CUBELETS_KMS`: spectral length in km/s of the extracted cubelets centered on the galaxies.
 

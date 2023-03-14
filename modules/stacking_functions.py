@@ -90,6 +90,7 @@ def get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini, channel_to_freq, 
     return cubelets
 
 def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets, central_width, pre_stacking_cubelets, weights_option, luminosity_distances):
+    
     """
     Stack the input cubelets to produce a single datacube.
 
@@ -122,6 +123,7 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
     errorbar_min, errorbar_max = 0, 0
     
     with alive_bar((2*num_pixels_cubelets + 1)**2 * num_galaxies, bar='circles', title=f'{type_of_datacube} stacking in progress') as bar:
+        noise_evolution = np.zeros(num_galaxies)
         for pixel_Y in range(2*num_pixels_cubelets + 1):
             for pixel_X in range(2*num_pixels_cubelets + 1):
                 rescale = 0
@@ -145,6 +147,15 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
 
                     rescale += weight
                     stacked_cube[:, pixel_Y, pixel_X] += (pre_stacking_cubelets[i, :, pixel_Y, pixel_X] * weight)
+                    
+                    if(type_of_datacube=='Data'):
+                        if(pixel_X==num_pixels_cubelets):
+                            if(pixel_Y==num_pixels_cubelets):
+                                continuum_stacked_spectrum = np.concatenate((stacked_cube[:int(num_channels_cubelets) - central_width, pixel_Y, pixel_X], stacked_cube[int(num_channels_cubelets) + central_width:, pixel_Y, pixel_X]))
+
+                                RMS = np.std(continuum_stacked_spectrum)
+
+                                noise_evolution[i] = RMS
                     bar()
 
                 if(type_of_datacube=='Data'):
@@ -162,7 +173,7 @@ def stacking_process(type_of_datacube, num_galaxies, num_channels_cubelets, num_
                 
                 stacked_cube[:, pixel_Y, pixel_X] /= rescale
     
-    return stacked_cube, errorbar_min, errorbar_max
+    return stacked_cube, errorbar_min, errorbar_max, noise_evolution
 
 def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pixels_cubelets,
                    coords_RA, coords_DEC, X_AR_ini, pixel_X_to_AR, Y_DEC_ini, pixel_Y_to_Dec,
@@ -227,7 +238,11 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
 
     # We use the spatial and spectral coordinates to extract cubelets of the galaxies
     if type_of_datacube == 'Noise':
-        redshifts = random.sample(list(redshifts), len(redshifts))
+        coords_RA = random.sample(list(coords_RA), len(coords_RA))
+        coords_DEC = random.sample(list(coords_DEC), len(coords_DEC))
+
+    coords_RA = np.array(coords_RA)
+    coords_DEC = np.array(coords_DEC)
 
     if type_of_datacube == 'PSF':
         cubelets = get_cubelets(num_galaxies, redshifts, rest_freq, freq_ini,
@@ -256,7 +271,7 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
     num_channels_final = int((spatially_spectrally_scaled_cubelets.shape[1] - 1) / 2)
     num_pixels_final = int((spatially_spectrally_scaled_cubelets.shape[2] - 1) / 2)
 
-    stacked_cube, errorbar_min, errorbar_max = stacking_process(type_of_datacube, num_galaxies, num_channels_final, num_pixels_final,
+    stacked_cube, errorbar_min, errorbar_max, noise_evolution = stacking_process(type_of_datacube, num_galaxies, num_channels_final, num_pixels_final,
                                      central_width, spatially_spectrally_scaled_cubelets, weights_option,
                                      luminosity_distances)
 
@@ -266,4 +281,4 @@ def datacube_stack(type_of_datacube, num_galaxies, num_channels_cubelets, num_pi
         for index, cubelet in enumerate(spatially_spectrally_scaled_cubelets):
             integrated_flux_cubelets[index] = np.nansum(cubelet)
 
-    return stacked_cube, integrated_flux_cubelets, errorbar_min, errorbar_max
+    return stacked_cube, integrated_flux_cubelets, errorbar_min, errorbar_max, noise_evolution

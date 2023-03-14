@@ -1,11 +1,19 @@
 import numpy as np
 import os
 import csv
+from astropy.constants import c
+from astropy.coordinates import Angle
+from astropy.cosmology import FlatLambdaCDM
 from astropy.io import fits
 from astropy.wcs import WCS
 import astropy.units as u
+import warnings
+warnings.filterwarnings("ignore")
 
 from modules.functions import str_to_bool
+
+cosmo = FlatLambdaCDM(H0=70*u.km / u.s / u.Mpc, Tcmb0=2.725*u.K, Om0=0.3)
+central_width = 5  # !!!Also have to rescale it
 
 def copy_header(name_orig_cube):
     """
@@ -127,8 +135,8 @@ def param_file(filename: str) -> tuple:
     # Global parameters
     # Use kpc instead of number of pixels and angstroms/Hz instead of number of channels
     weights_option = input_parameters['WEIGHTS']
-    degree_fit_continuum = int(input_parameters['DEGREE_FIT_CONTINUUM'])  # Degree of fit of continuum around emission lines
-    bool_calculate_SNR = str_to_bool(input_parameters['CALCULATE_SNR'])
+    degree_fit_continuum = int(input_parameters['DEGREE_FIT_CONTINUUM'])
+    number_of_repetitions = int(input_parameters['NUMBER_OF_REFERENCE'])
 
     # We are going to extract cubelets of 81x81 kpc^2 around each galaxy for data and noise stack
     semi_distance_around_galaxies = float(input_parameters['WIDTH_CUBELETS_KPC']) / 2 * u.kpc
@@ -136,7 +144,7 @@ def param_file(filename: str) -> tuple:
     # Half-range of velocities around the galaxy emission we select and use in the cubelets
     semi_vel_around_galaxies = float(input_parameters['WIDTH_CUBELETS_KMS']) / 2 * u.km / u.s
 
-    return general_path, name_orig_data_cube, name_orig_PSF_cube, name_catalog, column_RA, column_Dec, column_z, path_results, weights_option, degree_fit_continuum, bool_calculate_SNR, semi_distance_around_galaxies, semi_vel_around_galaxies
+    return general_path, name_orig_data_cube, name_orig_PSF_cube, name_catalog, column_RA, column_Dec, column_z, path_results, weights_option, degree_fit_continuum, number_of_repetitions, semi_distance_around_galaxies, semi_vel_around_galaxies
 
 def data_extraction(name_orig_cube: str, extension: int) -> tuple:
     """
@@ -234,3 +242,54 @@ def get_galaxies_positions(name_catalog:str, z_min:float, z_max:float, column_RA
                 num_galaxies += 1
 
     return coords_RA, coords_DEC, redshifts, num_galaxies
+
+def cubelets_limits(num_galaxies, redshifts, semi_distance_around_galaxies, pixel_scale, semi_vel_around_galaxies, data, channel_to_freq, freq_ref):
+
+    num_pixels_cubelets = np.zeros(num_galaxies)
+    num_channels_cubelets = np.zeros(num_galaxies)
+    zmin = np.nanmin(redshifts)
+    zmax = np.nanmax(redshifts)
+    luminosity_distances = []
+    mini, maxi = -1, -1
+    for index, z in enumerate(redshifts):
+        d_A = cosmo.angular_diameter_distance(z)
+        luminosity_distances.append(((1+z)**2 * d_A))
+        theta = Angle(np.arctan(semi_distance_around_galaxies/d_A), u.radian)
+        num_pixels_cubelets[index] = np.ceil(theta.degree/pixel_scale)
+
+        if(z == zmin):
+            mini = index
+        elif(z == zmax):
+            maxi = index
+        vel_channel_width = channel_to_freq * c * (1+z) / freq_ref
+
+        num_channels_cubelets[index] = int(
+            np.ceil((semi_vel_around_galaxies/vel_channel_width).decompose()))
+
+    num_pixels_cubelets = np.array(num_pixels_cubelets, dtype=int)
+
+    # !!! We suppose that the value of semi_freq_around_galaxies is given for z = 0
+    num_channels_cubelets = np.array(num_channels_cubelets, dtype=int)
+
+    # * After the stacking we will have a single number of spaxels and channels of the stacked datacube
+    # !!! Use nanmin(num_pixels_cubelets)
+    num_pixels_cubelets_final = int(num_pixels_cubelets[maxi])
+    # * Position of the stacked emission after the stacking #!!! Use nanmin
+    central_spaxel = int(num_pixels_cubelets_final)
+
+    # !!! Use nanmin(num_channels_cubelets)
+    num_channels_cubelets_final = int(num_channels_cubelets[maxi])
+    # * Position of the stacked emission after the stacking #!!! Use nanmin
+    central_channel = int(num_channels_cubelets_final)
+
+    if(num_channels_cubelets[maxi] < central_width):
+        print("\nThe emission cannot be wider than the width of the whole spectral axis. Reduce 'central_width'.\n")
+        exit()
+    if((2*num_channels_cubelets[maxi]+1) > data.shape[0]):
+        print("\nThe cubelets cannot be spectrally wider than the data datacube. Reduce 'semi_vel_around_galaxies'.\n")
+        exit()
+    if((2*num_pixels_cubelets[maxi]+1) > data.shape[1] or (2*num_pixels_cubelets[maxi]+1) > data.shape[2]):
+        print("\nThe cubelets cannot be wider spatially than the data datacube. Reduce 'semi_distance_around_galaxies'.\n")
+        exit()
+
+    return num_pixels_cubelets, num_channels_cubelets, num_pixels_cubelets_final, num_channels_cubelets_final, luminosity_distances, zmin, zmax, central_spaxel, central_channel
